@@ -13,7 +13,9 @@ Special one out for [itsmattkc](https://github.com/itsmattkc) for making Olive, 
 
 [TheGordinho](https://github.com/TheGordinho)
 
-Also Pfoiffee for being epic LMAO
+Pfoiffee for being epic LMAO
+
+LowEffortContentMaker for support
 
 ### There to Support
 
