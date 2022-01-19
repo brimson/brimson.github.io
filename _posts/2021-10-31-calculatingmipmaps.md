@@ -50,7 +50,6 @@ float ComputeLOD(vec2 TextureSize, vec2 OutputSize, float Bias)
 
 ```glsl
 // Optimized version by Ned Plays Games
-
 float ComputeLOD(vec2 TexCoord, vec2 InputTextureSize, float Bias)
 {
     vec2 TexelIndex = TexCoord * InputTextureSize;

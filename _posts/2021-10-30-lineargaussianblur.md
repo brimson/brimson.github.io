@@ -14,7 +14,7 @@ I wrote a GLSL snippet for us to use. Feel free to write your own calculations f
 
 ## Source Code
 
-### Shader
+### Shader (GLSL)
 
 ```glsl
 float Gaussian(float PixelIndex, float Sigma)
@@ -53,7 +53,7 @@ vec4 GaussianBlur(sampler2D Source, vec2 TexCoord, vec2 BufferSize, vec2 Directi
 }
 ```
 
-### C# Kernel Generator
+### C# Kernel Generator (.NET 6.0+)
 
 ```csharp
 static double Gaussian(int pixelIndex, double kernelSize)
@@ -66,36 +66,40 @@ static double Gaussian(int pixelIndex, double kernelSize)
 
 Console.WriteLine("Enter kernel size:");
 int kernelTaps = Convert.ToInt32(Console.ReadLine());
-int pixelIndex = 1;
-int valueIndex = 0;
 
-var linearOffsetList = new List<double>();
-var linearWeightList = new List<double>();
+// Create list of offsets and weights to print
+var offsetList = new List<double>();
+var weightList = new List<double>();
 
 // Calculate center tap first
-linearOffsetList.Add(0.0);
-linearWeightList.Add(Gaussian(0, kernelTaps));
+offsetList.Add(0.0);
+weightList.Add(Gaussian(0, kernelTaps));
+
+// Initialize loop values
+int pixelIndex = 1;
+int valueIndex = 0;
 
 // Remaining taps (negate offsets for left-sided taps)
 while(pixelIndex < kernelTaps)
 {
-    int pixelOffset1 = pixelIndex;
-    int pixelOffset2 = pixelIndex + 1;
-    double pixelWeight1 = Gaussian(pixelOffset1, kernelTaps);
-    double pixelWeight2 = Gaussian(pixelOffset2, kernelTaps);
+    int offset1 = pixelIndex;
+    int offset2 = pixelIndex + 1;
+    double weight1 = Gaussian(offset1, kernelTaps);
+    double weight2 = Gaussian(offset2, kernelTaps);
 
-    double pixelWeightLinear = pixelWeight1 + pixelWeight2;
-    double pixelOffsetLinear = ((pixelOffset1 * pixelWeight1) + (pixelOffset2 * pixelWeight2)) / pixelWeightLinear;
+    double linearWeight = weight1 + weight2;
+    double linearOffset = ((offset1 * weight1) + (offset2 * weight2)) / linearWeight;
 
-    linearOffsetList.Add(pixelOffsetLinear);
-    linearWeightList.Add(pixelWeightLinear);
+    offsetList.Add(linearOffset);
+    weightList.Add(linearWeight);
 
     pixelIndex += 2;
     valueIndex += 1;
 }
 
-Console.WriteLine($"Offsets: {string.Join(", ", linearOffsetList)}");
-Console.WriteLine($"Weights: {string.Join(", ", linearWeightList)}");
+string totalOffsets = String.Join(", ", offsetList);
+string totalWeights = String.Join(", ", weightList);
+Console.WriteLine($"Offsets: {totalOffsets}\nWeights: {totalWeights}");
 ```
 
 ## References

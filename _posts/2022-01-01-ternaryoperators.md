@@ -6,9 +6,34 @@ category: Shaders
 tags: [Post-Processing, Optimization]
 ---
 
-I was a skeptical about writing conditionals in my shaders.
+I was writing a red-black checkerboarding shader to test iterative solvers on.
+
+```glsl
+void main(void)
+{
+    float RedBlack = fract(dot(gl_FragCoord.xy, vec2(0.5))) * 2.0;
+    gl_FragColor = RedBlack == 1.0 ? vec4(1.0, 0.0, 0.0, 0.0) : vec4(0.0);
+}
+```
+
+I was a skeptical about writing conditionals in shaders like I did on `gl_FragColor`. I assumed that every conditional would result in branching.
+
+I was wrong. In best case scenario, the shader would lead us to the following output:
+
+```asm
+dp3
+frc
+mul
+cmp
+```
+
+Shader programs have conditional instructions that are arithmetic, not flow-control. Pixel shaders have `cmp`, an instruction that uses `src0` to choose between `src1` and `src2`. The vertex shader have counterparts to `cmp` in the form of `slt` and `sge`.
 
 ## References
+
+[ARB_fragment_program](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_fragment_program.txt)
+
+[ARB_vertex_program](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_vertex_program.txt)
 
 [ps_3_0 Instructions](https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-instructions-ps-3-0)
 
