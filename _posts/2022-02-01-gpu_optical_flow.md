@@ -47,16 +47,16 @@ This optical flow implemenation uses a 2-dimensional color space (RG Chromaticit
 
 `saturate(Color.xy / dot(Color.rgb, 1.0))`
 
-Pass | Type | Sample | RenderTarget
-:--: | :--: | :----: | :----------:
+Pass | Shader | Input | Output
+:--: | :----: | :---: | :----:
 1 | Normalize | Backbuffer | Buffer0
 
 ### Preprocess blur
 
 In this implementation, we rely on Jorge Jimenez's pyramid convolution scheme instead of seperated Gaussian blurs like Pete Warden's GPU implementation
 
-Pass | Type | Sample | RenderTarget
-:--: | :--: | :----: | :----------:
+Pass | Shader | Input | Output
+:--: | :----: | :---: | :----:
 2 | Downsample | Buffer0 | Temporary1
 3 | Downsample | Temporary1 | Temporary2
 4 | Downsample | Temporary2 | Temporary3
