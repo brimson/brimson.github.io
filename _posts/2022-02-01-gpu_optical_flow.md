@@ -1,24 +1,21 @@
 ---
 layout: post
 date: 2022-02-01
-title: Pyramidal Horn Schunck on the GPU
+title: Multi-scale Horn Schunck on the GPU
 category: Shaders
 tags: [Computer Vision, Optimization]
 ---
 
-Implementing basic motion estimation on pixel shaders was not trivial. We need an algorithm that satisfies the following conditions:
+Implementing basic motion estimation on pixel shaders was not trivial. We need an algorithm that satisfies multiple assumptions:
 
-+ Able to estimate larger movements
-+ Bandwidth and fillrate efficient
-+ Global method that applies to every pixel
-+ Not too swayed by illuminance and noise
-+ Benefits from hardware interpolation
++ Constant lighting
++ Small temporal changes
 
-In this post, I construct a shader implementation of Horn-Schunck's algorithm in 24 draw-calls with the following modifications:
+In this post, I construct a shader implementation of Horn-Schunck's algorithm in 24 draw-calls to accomodate these assumptions:
 
 + Bilinear convolutions and sampling
 + Chromaticity estimation
-+ Coarse-to-fine scheme
++ Multi-scale estimation
 + Symmetric Gauss-Seidel solver
 
 ## Resource Requirements
@@ -37,7 +34,7 @@ Temporary2 | RG16F | BUFFER_SIZE / 8 | 0
 Temporary1 | RG16F | BUFFER_SIZE / 4 | 0
 Temporary0 | RG16F | BUFFER_SIZE / 2 | 0
 
-> Note: You do not need `BufferIxy` if you are calculating discrete derivatives in each pyramid pass
+> Note: You do not need `BufferIxy` if you are calculating discrete derivatives in each optical flow pass
 
 ## Pre-processing
 
@@ -88,14 +85,14 @@ We implement Horn-Schunck's optical flow algorithm with a set of modifications
 
 + Compute averages with a 7x7 low-pass tent filter
 + Estimate features in 2-dimensional chromaticity
-+ Use pyramid process to get initial values from neighboring pixels
++ Use multi-scale process to get initial values from neighboring pixels
 + Use symmetric Gauss-Seidel to solve linear equation at Page 8
 
 ### Low-pass Tent Filter
 
 We use the same upsampling filter to get an average of the vector's neighborhood.
 
-### Pyramids
+### Multi-scale Estimation
 
 Computerphile has a video explaining how to solve for larger movements. The solution involved iterating optical flow through a mip-chain like the following:
 
@@ -200,6 +197,8 @@ Pass | Shader | Input | Output
 [Determining Optical Flow](https://dspace.mit.edu/handle/1721.1/6337)
 
 [Jorge Jimenez - Next Generation Post Processing in Call of Duty: Advanced Warfare](http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare)
+
+[Optical Flow - Computerphile](https://www.youtube.com/watch?v=5AUypv5BNbI)
 
 [Optic Flow Solutions - Computerphile](https://www.youtube.com/watch?v=4v_keMNROv4)
 
