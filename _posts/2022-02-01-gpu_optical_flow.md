@@ -6,24 +6,35 @@ category: Shaders
 tags: [Computer Vision, Optimization]
 ---
 
-Implementing basic motion estimation on pixel shaders was not trivial. We need an algorithm that satisfies multiple assumptions:
+In this post, I address a shader implementation of Horn-Schunck's optical flow in 24 draw-calls.
 
-+ Constant lighting
-+ Small temporal changes
+## Limitations
 
-In this post, I construct a shader implementation of Horn-Schunck's algorithm in 24 draw-calls to accomodate these assumptions:
+### Assumptions
 
-+ Bilinear convolutions and sampling
-+ Chromaticity estimation
-+ Multi-scale estimation
-+ Symmetric Gauss-Seidel solver
+The original optical flow algorithm assumes the scene has brightness constancy and small changes. Therefore, it breaks on large movement (i.e. low-fps footage) and scenes with varying illumination.
+
+### Iterations
+
+Pixel shaders are not known for being the best for traditional stationary iterative solvers like Jacobi. These solvers use small kernels in dozens of iterations to get good results. These traditional schemes are simple, can are slow on the GPU due to fillrate and draw-call limitations.
+
+## Solutions
+
+The shader addresses multiple GPU limitations to Horn-Schunck's optical flow
+
++ **Limitation:** Small changes assumption
+  + Bilinear convolutions and sampling
++ **Limitation:** Brightness constancy assumption
+  + Chromaticity estimation
++ **Limitation:** Iteration constraint
+  + Multi-scale, symmetric Gauss-Seidel solver
 
 ## Resource Requirements
 
 Texture | Format | Resolution | MipLevels
 :-----: | :----: | :--------: | :-------:
-Buffer0 | RG16F   | BUFFER_SIZE / 2 | 8
-Buffer1 | RG16F   | BUFFER_SIZE / 2 | 8
+Buffer0 | RG16F | BUFFER_SIZE / 2 | 8
+Buffer1 | RG16F | BUFFER_SIZE / 2 | 8
 BufferIxy | RGBA16F | BUFFER_SIZE / 2 | 8
 Temporary7 | RG16F | BUFFER_SIZE / 256 | 0
 Temporary6 | RG16F | BUFFER_SIZE / 128 | 0
@@ -36,12 +47,12 @@ Temporary0 | RG16F | BUFFER_SIZE / 2 | 0
 
 ## Pre-processing
 
-### Normalization
+### Color Normalization
 
-This optical flow implemenation uses a 2-dimensional color space (RG Chromaticity) instead of conventional 1-dimensional intenisity (luminance).
+We use a 2-dimensional color space (RG Chromaticity) instead of conventional 1-dimensional intenisity (luminance). This removes the derivatives' dependency on illumination.
 
 ```glsl
-vec2 RGChromaticity = clamp(Color.xy / dot(Color.rgb, vec2(1.0)), 0.0, 1.0);`
+vec2 RGChromaticity = clamp(Color.xy / dot(Color.rgb, vec2(1.0)), 0.0, 1.0);
 ```
 
 Pass | Shader | Input | Output
@@ -50,17 +61,15 @@ Pass | Shader | Input | Output
 
 ### Convolution
 
-In this implementation, we rely on Jorge Jimenez's pyramid convolution instead of seperated Gaussian blurs like Pete Warden's GPU implementation. This solution is superior to conventional Gaussian blur for multiple reasons:
+We use Jorge Jimenez's pyramid convolution instead of seperated Gaussian blurs like Pete Warden's GPU optical flow. This solution is superior to conventional a Gaussian blur for multiple reasons:
 
 + Cache friendly due to small kernels and box sampling
-+ Elimates temporal issues and prevents jumping on high-frequency areas
-+ Takes advantage of multiple texels per fetch
-  + 4 texels a fetch in downsampling
-  + 9 texels a fetch in upsampling
-+ Saves bandwidth because it does not a proxy texture of the same resolution
-+ Easily to achieve wide-radii blur at expence of 2 draw-calls per level
-
-We save the prefiltered current frame to `Buffer0`
++ Elimates temporal instabilities
++ Multiple texels per fetch
+  + **Downsampling:** 4 texels per fetch
+  + **Upsampling:** 9 texels per fetch
++ Does not require 2 textures of the same resolution
++ Easily achieve wide-radii convolutions with 2 draw-calls per level
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
@@ -75,7 +84,7 @@ Pass | Shader | Input | Output
 
 We create a pyramid of **spatial** derivates using a Sobel filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces.
 
-We do not need to do the same for **temporal** derivatives because it does not involve spatial variation.
+We do not need to build a pyramid for **temporal** derivatives because it does not involve spatial variation.
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
@@ -98,20 +107,7 @@ We use the same upsampling filter to get an average of the vector's neighborhood
 
 Horn-Schunck used a Jacobi solver with Cramer's Rule for optimization on a 1-dimensional source.
 
-```glsl
-void OpticalFlow(in vec2 UV, // Previous estimate
-                 in vec2 Dxy, // Spatial derivatives
-                 in float Dt, // Temporal derivative
-                 in float Alpha, // Regularizer
-                 out vec2 DUV)
-{
-    float Value = dot(Dxy, UV) + Dt;
-    float Determinant = dot(Dxy, Dxy) + Alpha;
-    DUV = UV.xy - ((Dxy * Value) / Determinant);
-}
-```
-
-This implementation uses a custom solver on a 2-dimensional source.
+However, this uses a custom solver on a 2-dimensional source.
 
 ```glsl
 void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
@@ -146,7 +142,7 @@ void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
 
 ### Multi-scale Estimation
 
-Computerphile has a video explaining how to solve for larger movements. The solution involved iterating optical flow through a mip-chain like the following:
+*Computerphile* has a video explaining how to solve optical flow for larger movements. The solution involved iterating optical flow through a mip-chain like the following:
 
 1. Process the coarsest level `Temporary7`
 2. Use results from the coarser level to initialize optical flow values at the finer level
