@@ -34,15 +34,15 @@ Temporary2 | RG16F | BUFFER_SIZE / 8 | 0
 Temporary1 | RG16F | BUFFER_SIZE / 4 | 0
 Temporary0 | RG16F | BUFFER_SIZE / 2 | 0
 
-> Note: You do not need `BufferIxy` if you are calculating discrete derivatives in each optical flow pass
-
 ## Pre-processing
 
 ### Normalization
 
-This optical flow implemenation uses a 2-dimensional color space (RG Chromaticity) instead of conventional 1-dimensional intenisity (luminance). On Direct3D 9.0c, this operation is as cheap as 3 instructions (DP3-RCP-MUL):
+This optical flow implemenation uses a 2-dimensional color space (RG Chromaticity) instead of conventional 1-dimensional intenisity (luminance).
 
-`saturate(Color.xy / dot(Color.rgb, 1.0))`
+```glsl
+vec2 RGChromaticity = clamp(Color.xy / dot(Color.rgb, vec2(1.0)), 0.0, 1.0);`
+```
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
@@ -50,7 +50,17 @@ Pass | Shader | Input | Output
 
 ### Convolution
 
-In this implementation, we rely on Jorge Jimenez's pyramid convolution scheme instead of seperated Gaussian blurs like Pete Warden's GPU implementation. We save the prefiltered current frame to `Buffer0`
+In this implementation, we rely on Jorge Jimenez's pyramid convolution instead of seperated Gaussian blurs like Pete Warden's GPU implementation. This solution is superior to conventional Gaussian blur for multiple reasons:
+
++ Cache friendly due to small kernels and box sampling
++ Elimates temporal issues and prevents jumping on high-frequency areas
++ Takes advantage of multiple texels per fetch
+  + 4 texels a fetch in downsampling
+  + 9 texels a fetch in upsampling
++ Saves bandwidth because it does not a proxy texture of the same resolution
++ Easily to achieve wide-radii blur at expence of 2 draw-calls per level
+
+We save the prefiltered current frame to `Buffer0`
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
@@ -61,19 +71,11 @@ Pass | Shader | Input | Output
 6 | Upsample | Temporary2 | Temporary1
 7 | Upsample | Temporary1 | Buffer0
 
-Reasons why this solutions is superior to conventional Gaussian blur:
-
-+ Cache friendly due to small kernels and box sampling
-+ Elimates temporal issues and prevents jumping on high-frequency areas
-+ Takes advantage of multiple texels per fetch
-  + 4 texels a fetch in downsampling
-  + 9 texels a fetch in upsampling
-+ Saves bandwidth because it does not a proxy texture of the same resolution
-+ Easily to achieve wide-radii blur at expence of 2 draw-calls per level
-
 ## Derivatives
 
-We create a pyramid of discrete derivates using a Sobel filter for this implementation. You can calculate the derivatives in each estimation pass to save bandwidth.
+We create a pyramid of **spatial** derivates using a Sobel filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces.
+
+We do not need to do the same for **temporal** derivatives because it does not involve spatial variation.
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
@@ -91,14 +93,6 @@ We implement Horn-Schunck's optical flow algorithm with a set of modifications
 ### Low-pass Tent Filter
 
 We use the same upsampling filter to get an average of the vector's neighborhood.
-
-### Multi-scale Estimation
-
-Computerphile has a video explaining how to solve for larger movements. The solution involved iterating optical flow through a mip-chain like the following:
-
-1. Process the coarsest level `Temporary7`
-2. Use results from the coarser level to initialize optical flow values at the finer level
-3. Repeat until finest level `Temporary0`
 
 ### Iterative Solver
 
@@ -120,7 +114,7 @@ void OpticalFlow(in vec2 UV, // Previous estimate
 This implementation uses a custom solver on a 2-dimensional source.
 
 ```glsl
-void OpticalFlowRG(in vec2 UV, // Previous estimate
+void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
                    in vec4 Dxy, // Spatial derivatives (Rx, Ry, Gx, Gy)
                    in vec2 Dt, // Temporal derivatives (Rt, Gt)
                    in float Alpha, // Regularizer
@@ -150,7 +144,13 @@ void OpticalFlowRG(in vec2 UV, // Previous estimate
 }
 ```
 
-### Iterations
+### Multi-scale Estimation
+
+Computerphile has a video explaining how to solve for larger movements. The solution involved iterating optical flow through a mip-chain like the following:
+
+1. Process the coarsest level `Temporary7`
+2. Use results from the coarser level to initialize optical flow values at the finer level
+3. Repeat until finest level `Temporary0`
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
