@@ -111,8 +111,8 @@ However, this uses a custom solver on a 2-dimensional source.
 
 ```glsl
 void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
-                   in vec4 Dxy, // Spatial derivatives (Rx, Ry, Gx, Gy)
-                   in vec2 Dt, // Temporal derivatives (Rt, Gt)
+                   in vec4 Dxy, // Spatial derivatives <Rx, Ry, Gx, Gy>
+                   in vec2 Dt, // Temporal derivatives <Rt, Gt>
                    in float Alpha, // Regularizer
                    out vec2 DUV)
 {

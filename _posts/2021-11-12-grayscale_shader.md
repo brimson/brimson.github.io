@@ -3,7 +3,7 @@ layout: post
 date: 2021-11-12
 title: How It's Shade - Grayscale
 category: Shaders
-tags: [Post-Processing, Tutorials]
+tags: [Post-Processing, Tutorial]
 ---
 
 Welcome, today is the day you make your first ReShade shader in 5 Steps.

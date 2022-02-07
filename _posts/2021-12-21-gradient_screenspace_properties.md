@@ -6,7 +6,7 @@ category: Shaders
 tags: [Post-Processing]
 ---
 
-Sometimes you have to ride the tiger when it.
+Sometimes you have to ride the tiger.
 
 ## The Problem
 

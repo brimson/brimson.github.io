@@ -3,7 +3,7 @@ layout: post
 date: 2021-11-12
 title: How It's Shade - Void Functions
 category: Shaders
-tags: [Post-Processing, Tutorials]
+tags: [Post-Processing, Tutorial]
 ---
 
 **void()** functions are essential vertex and pixel shaders. Void functions allow you to output multiple values.
