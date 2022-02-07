@@ -1,7 +1,7 @@
 ---
 layout: post
 date: 2021-11-08
-title: Blurring with Vogel Spirals
+title: Convolutions with Vogel Spirals
 category: Shaders
 tags: [Convolutions, Post-Processing]
 ---
