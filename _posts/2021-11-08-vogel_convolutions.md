@@ -6,7 +6,7 @@ category: Shaders
 tags: [Convolutions, Post-Processing]
 ---
 
-You do not need much to approximate blurs. You only need a texture with mipmaps to blur a static image. In this post, we repurpose [spiral sampling for shadows](http://maxest.gct-game.net/content/chss.pdf) for screen blurring.
+You do not need much to approximate blurs. You only need a texture with mipmaps to blur a static image. In this post, we repurpose [Wojciech Sterna's shadow sampling](http://maxest.gct-game.net/content/chss.pdf) for screen blurring.
 
 ## How Vogel Blur Works
 
