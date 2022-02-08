@@ -35,7 +35,8 @@ Texture | Format | Resolution | MipLevels
 :-----: | :----: | :--------: | :-------:
 Buffer0 | RG16F | BUFFER_SIZE / 2 | 8
 Buffer1 | RG16F | BUFFER_SIZE / 2 | 8
-BufferIxy | RGBA16F | BUFFER_SIZE / 2 | 8
+Buffer2 | RG16F | BUFFER_SIZE / 2 | 8
+Buffer3 | RG16F | BUFFER_SIZE / 2 | 8
 Temporary7 | RG16F | BUFFER_SIZE / 256 | 0
 Temporary6 | RG16F | BUFFER_SIZE / 128 | 0
 Temporary5 | RG16F | BUFFER_SIZE / 64 | 0
@@ -82,13 +83,12 @@ Pass | Shader | Input | Output
 
 ## Derivatives
 
-We create a pyramid of **spatial** derivates using a Sobel filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces.
-
-We do not need to build a pyramid for **temporal** derivatives because it does not involve spatial variation.
+We create a pyramid of **spatial** and **temporal** derivates using a Sobel filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces.
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-8 | Derivatives | Buffer0 | BufferIxy
+8 | DerivativesZ | Buffer0, Buffer3 | Buffer1
+9 | DerivativesXY | Buffer0 | Buffer2, Buffer3
 
 ## Optical Flow
 
@@ -107,28 +107,29 @@ We use the same upsampling filter to get an average of the vector's neighborhood
 
 Horn-Schunck used a Jacobi solver with Cramer's Rule for optimization on a 1-dimensional source.
 
-However, this uses a custom solver on a 2-dimensional source.
+However, this uses a symmetric Gauss-Seidel solver on a 2-dimensional source.
 
 ```glsl
 void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
-                   in vec4 Dxy, // Spatial derivatives <Rx, Ry, Gx, Gy>
-                   in vec2 Dt, // Temporal derivatives <Rt, Gt>
+                   in vec2 Ix, // X Spatial derivatives <Rx, Gx>
+                   in vec2 Iy, // Y Spatial derivatives <Ry, Gy>
+                   in vec2 It, // Temporal derivatives <Rt, Gt>
                    in float Alpha, // Regularizer
                    out vec2 DUV)
 {
     // Compute diagonal
     vec2 Aii;
-    Aii.x = dot(Dxy.xz, Dxy.xz) + Alpha;
-    Aii.y = dot(Dxy.yw, Dxy.yw) + Alpha;
+    Aii.x = dot(Ix, Ix) + Alpha;
+    Aii.y = dot(Iy, Iy) + Alpha;
     Aii.xy = 1.0 / Aii.xy;
 
     // Compute right-hand side
     vec2 RHS;
-    RHS.x = dot(Dxy.xz, Dt.rg);
-    RHS.y = dot(Dxy.yw, Dt.rg);
+    RHS.x = dot(Ix, It);
+    RHS.y = dot(Iy, It);
 
     // Compute triangle
-    float Aij = dot(Dxy.xz, Dxy.yw);
+    float Aij = dot(Ix, Iy);
 
     // Symmetric Gauss-Seidel (forward sweep, from 1...N)
     DUV.x = Aii.x * ((Alpha * UV.x) - RHS.x - (UV.y * Aij));
@@ -150,27 +151,29 @@ void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-9 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary7
-10 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary6
-11 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary5
-12 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary4
-13 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary3
-14 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary2
-15 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary1
-16 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary0
+10 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary7
+11 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary6
+12 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary5
+13 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary4
+14 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary3
+15 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary2
+16 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary1
+17 | OpticalFlow | Buffer0, Buffer1, BufferIxy | Temporary0
 
 ## Post-processing
 
-We do the same convolutions like in the prefiltering phase. However, we use the optical flow texture as input and output the result to `Buffer1`. We do not write to `Buffer0` because we will use copy that texture and use it as the previous frame after all processing
+We do the same convolutions like in the prefiltering phase. However, we use the optical flow texture as input and output the result to `Buffer1`.
+
+On pass 23, we also copy `Buffer0`, to `Buffer3` after all processing. This allows us to store information from the current convolved frame `Buffer0` for the next frame in 1 pass.
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-17 | Downsample | Temporary0 | Temporary1
-18 | Downsample | Temporary1 | Temporary2
-19 | Downsample | Temporary2 | Temporary3
-20 | Upsample | Temporary3 | Temporary2
-21 | Upsample | Temporary2 | Temporary1
-22 | Upsample | Temporary1 | Buffer1
+18 | Downsample | Temporary0 | Temporary1
+19 | Downsample | Temporary1 | Temporary2
+20 | Downsample | Temporary2 | Temporary3
+21 | Upsample | Temporary3 | Temporary2
+22 | Upsample | Temporary2 | Temporary1
+23 | Upsample | Temporary1, Buffer0 | Buffer1, Buffer3
 
 ## Output
 
@@ -178,15 +181,7 @@ This is the final pass, where we display the processed optical flow result in th
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-23 | Display | Buffer1 | BackBuffer
-
-## Copy
-
-We copy `Buffer0`, to `Buffer1` after all processing. This allows us to store information from the current frame `Buffer0` and the previous frame `Buffer1` for the optical flow passes.
-
-Pass | Shader | Input | Output
-:--: | :----: | :---: | :----:
-24 | Copy | Buffer0 | Buffer1
+24 | Display | Buffer1 | BackBuffer
 
 ## References
 
