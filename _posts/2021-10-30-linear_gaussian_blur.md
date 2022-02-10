@@ -79,7 +79,7 @@ weightList.Add(Gaussian(0, kernelTaps));
 int pixelIndex = 1;
 int valueIndex = 0;
 
-// Remaining taps (negate offsets for left-sided taps)
+// Remaining taps (negate offsets for left-side taps)
 while(pixelIndex < kernelTaps)
 {
     int offset1 = pixelIndex;

@@ -6,11 +6,11 @@ category: Shaders
 tags: [Convolutions, Post-Processing]
 ---
 
-You do not need much to approximate blurs. You only need a texture with mipmaps to blur a static image. In this post, we repurpose [Wojciech Sterna's shadow sampling](http://maxest.gct-game.net/content/chss.pdf) for screen blurring.
+You do not need much to approximate convolutions. You only need a texture with mipmaps to blur a static image. In this post, we repurpose [Wojciech Sterna's shadow sampling](http://maxest.gct-game.net/content/chss.pdf) for screen convolutions.
 
-## How Vogel Blur Works
+## How Vogel Convolutions Work
 
-1. Sample textures in a spiral fashion
+1. Sample textures in a spiral
 2. Use mipmaps or noise to fill the gaps between the sampled textures
     1. [Calculate LOD though the area the sample covers](https://john-chapman.github.io/2019/03/29/convolution.html) if you use mipmaps
 3. Average all of the samples
@@ -32,7 +32,7 @@ void VogelSample(int Index, int SamplesCount, float Phi, out vec2 OutputValue)
     OutputValue = Radius * SineCosine;
 }
 
-void VogelBlur(sampler2D Source, vec2 TexCoord, vec2 ScreenSize, float Radius, int Samples, float Phi, out vec4 OutputColor)
+void VogelConvolution(sampler2D Source, vec2 TexCoord, vec2 ScreenSize, float Radius, int Samples, float Phi, out vec4 OutputColor)
 {
     // Initialize variables we need to accumulate samples and calculate offsets
     vec4 Output;

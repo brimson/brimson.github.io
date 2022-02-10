@@ -45,7 +45,7 @@ Temporary3`*` | RG16F | BUFFER_SIZE / 8 | 0
 Temporary2`*` | RG16F | BUFFER_SIZE / 4 | 0
 Temporary1 | RG16F | BUFFER_SIZE / 2 | 0
 
-> `*` = Reusable texture
+> `*` Reusable texture
 
 ## Pre-processing
 
@@ -84,9 +84,9 @@ Pass | Shader | Input | Output
 
 ## Derivatives
 
-We create a pyramid of **spatial** derivates using a Sobel filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces.
+We create a pyramid of **spatial** derivates using a Sobel filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces. We do not need to build a pyramid for **temporal** derivatives because it does not rely on spatial kernels.
 
-We do not need to build a pyramid for **temporal** derivatives because it does not rely on spatial kernels.
+We pack this pyramid texture into an `RGBA16F` texture, which we can use for other shaders.
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
@@ -96,22 +96,17 @@ Pass | Shader | Input | Output
 
 We implement Horn-Schunck's optical flow algorithm with a set of modifications
 
-+ Compute averages with a 7x7 low-pass tent filter
-+ Estimate features in 2-dimensional chromaticity
 + Use multi-scale process to get initial values from neighboring pixels
-+ Use symmetric Gauss-Seidel to solve linear equation at Page 8
-
-### Low-pass Tent Filter
-
-We use the same upsampling filter to get an average of the vector's neighborhood.
++ Average initial values with a 7x7 low-pass tent filter
++ Estimate features in 2-dimensional chromaticity
++ Use symmetric Gauss-Seidel to solve linear equation
 
 ### Iterative Solver
 
-Horn-Schunck used a Jacobi solver with Cramer's Rule for optimization on a 1-dimensional source.
-
-However, this uses a custom solver on a 2-dimensional source.
-
 ```glsl
+// Horn-Schunck used a Jacobi solver with Cramer's Rule
+// This is a symmetric Gauss-Seidel solver on a 2-dimensional source
+
 void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
                    in vec4 Di, // Spatial derivatives <Rx, Gx, Ry, Gy>
                    in vec2 Dt, // Temporal derivatives <Rt, Gt>
@@ -132,11 +127,11 @@ void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
     // Compute triangle
     float Aij = dot(Di.xy, Di.zw);
 
-    // Symmetric Gauss-Seidel (forward sweep, from 1...N)
+    // Forward Gauss-Seidel (from 1...i)
     DUV.x = Aii.x * ((Alpha * UV.x) - RHS.x - (UV.y * Aij));
     DUV.y = Aii.y * ((Alpha * UV.y) - RHS.y - (DUV.x * Aij));
 
-    // Symmetric Gauss-Seidel (backward sweep, from N...1)
+    // Backward Gauss-Seidel (from i...1)
     DUV.y = Aii.y * ((Alpha * DUV.y) - RHS.y - (DUV.x * Aij));
     DUV.x = Aii.x * ((Alpha * DUV.x) - RHS.x - (DUV.y * Aij));
 }

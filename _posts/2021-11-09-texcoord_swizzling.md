@@ -27,19 +27,19 @@ However, you can pack multiple offsets into one attribute and swizzle them at lo
 
 ## Source Code
 
-### 2x2 Box Filter
+### 4-Tap, 3x3 Bilinear Gaussian Filter
 
 ```glsl
-void BoxFilterVS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, inout float4 TexCoord : TEXCOORD0)
+void FilterVS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, inout float4 TexCoord : TEXCOORD0)
 {
     float2 VTexCoord;
     VTexCoord.x = (ID == 2) ? 2.0 : 0.0;
     VTexCoord.y = (ID == 1) ? 2.0 : 0.0;
     Position = float4(VTexCoord * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
-    TexCoord = VTexCoord.xyxy + float4(-1.0, -1.0, 1.0, 1.0) * PixelSize;
+    TexCoord = VTexCoord.xyxy + float4(-0.5, -0.5, 0.5, 0.5) * PixelSize;
 }
 
-void BoxFilterPS(in float2 Position : SV_POSITION, in float4 TexCoord : TEXCOORD0, out float4 OutputColor0 : SV_TARGET0)
+void FilterPS(in float2 Position : SV_POSITION, in float4 TexCoord : TEXCOORD0, out float4 OutputColor0 : SV_TARGET0)
 {
     OutputColor0 += tex2D(_Sampler, TexCoord.xw) * 0.25; // (-1.0, +1.0)
     OutputColor0 += tex2D(_Sampler, TexCoord.zw) * 0.25; // (+1.0, +1.0)

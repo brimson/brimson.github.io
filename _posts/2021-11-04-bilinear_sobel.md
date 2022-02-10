@@ -36,11 +36,12 @@ The first assumption is that sobel requires 8 texture fetches, each **on** the p
 What if we sample adjacently, **in-between** 4 pixels? In a pixel index, the GPU will preform a 2x2 bilinear interpolation between sampled texels.
 
 ```glsl
-// Sampler locations
+// Sampler locations (A, B, C, D)
+// Let numbers be pixel indices
 [1   2   3]
-  [A] [C]
+[  A   C  ]
 [4   5   6]
-  [B] [D]
+[  B   D  ]
 [7   8   9]
 
 // Horizontal kernel
