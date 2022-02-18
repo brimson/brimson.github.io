@@ -6,7 +6,7 @@ category: Shaders
 tags: [Computer Vision, Optimization]
 ---
 
-In this post, I address a shader implementation of Horn-Schunck's optical flow in 24 draw-calls.
+In this post, I address a shader implementation of Horn-Schunck's optical flow in 23 draw-calls.
 
 ## Limitations
 
@@ -18,16 +18,13 @@ The original optical flow algorithm assumes the scene has brightness constancy a
 
 Pixel shaders are not known for being the best for traditional stationary iterative solvers like Jacobi. These solvers use small kernels in dozens of iterations to get good results. These traditional schemes are simple, can are slow on the GPU due to fillrate and draw-call limitations.
 
-## Solutions
+The shader addresses these GPU limitations in Horn-Schunck's optical flow
 
-The shader addresses multiple GPU limitations to Horn-Schunck's optical flow
-
-+ **Limitation:** Small changes assumption
-  + Bilinear convolutions and sampling
-+ **Limitation:** Brightness constancy assumption
-  + Chromaticity estimation
-+ **Limitation:** Iteration constraint
-  + Multi-scale, symmetric Gauss-Seidel solver
+Limitation | Mitigation
+:--------: | :------:
+Small changes assumption | Bilinear convolutions and sampling
+Brightness constancy assumption | Chromaticity estimation
+Iteration constraint | Multi-scale, symmetric Gauss-Seidel solver
 
 ## Resource Requirements
 
@@ -51,27 +48,33 @@ Temporary1 | RG16F | BUFFER_SIZE / 2 | 0
 
 ### Color Normalization
 
-We use a 2-dimensional color space (RG Chromaticity) instead of conventional 1-dimensional intenisity (luminance). This removes the derivatives' dependency on illumination.
+We use a 2-dimensional color space (RG Chromaticity) instead of conventional 1-dimensional intensity (luminance). This removes the derivatives' dependency on illumination. We apply this conversion to **each** sample before applying our median filter.
 
 ```glsl
-vec2 RGChromaticity = clamp(Color.xy / dot(Color.rgb, vec2(1.0)), 0.0, 1.0);
+vec2 Chroma(sampler2D Source, vec2 TexCoord)
+{
+    vec4 Color = max(texture(Source, TexCoord), exp2(-10.0));
+    return max(Color.xy / dot(Color.rgb, vec2(1.0)), 0.0);
+}
 ```
+
+### Median Filtering
+
+We apply a median filter in a 3x3 neighborhood for this shader. Remember to normalize each sample, not the median-filtered result.
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-1 | Normalize | Backbuffer | Buffer0
+1 | Normalize_Median | Backbuffer | Buffer0
 
 ### Convolution
 
-We use Jorge Jimenez's pyramid convolution instead of seperated Gaussian blurs like Pete Warden's GPU optical flow. This solution is superior to conventional a Gaussian blur for multiple reasons:
+Pete Warden's GPU optical flow uses seperated Gaussian blurs. However, we will use Jorge Jimenez's pyramid convolution, which   is superior for multiple reasons:
 
 + Cache friendly due to small kernels and box sampling
-+ Elimates temporal instabilities
-+ Multiple texels per fetch
-  + **Downsampling:** 4 texels per fetch
-  + **Upsampling:** 9 texels per fetch
++ Elimates temporal instabilities (important for Horn-Schunck)
++ Fetches and processes multiple texels at once
 + Does not require 2 textures of the same resolution
-+ Easily achieve wide-radii convolutions with 2 draw-calls per level
++ Can easily achieve wide-radii convolutions
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
@@ -84,13 +87,15 @@ Pass | Shader | Input | Output
 
 ## Derivatives
 
-We create a pyramid of **spatial** derivates using a Sobel filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces. We do not need to build a pyramid for **temporal** derivatives because it does not rely on spatial kernels.
+We create a pyramid of **spatial** derivates using a directional edge detection filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces.
 
-We pack this pyramid texture into an `RGBA16F` texture, which we can use for other shaders.
+We pack this pyramid texture into an `RGBA16F` texture, which we can use for other shaders. We do not need to build a pyramid for **temporal** derivatives because it does not rely on spatial kernels.
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
 8 | Derivatives | Buffer0 | Buffer1
+
+> **NOTE:** Many edge filter kernels are for **integer** sources. Make sure to normalize the derivatives to `[-1, 1]` range because we are working on the neighborhood of `[0, 1]` chromaticity. I recommend using a 5x5 kernel so the shader is robust against noise.
 
 ## Optical Flow
 
@@ -113,27 +118,46 @@ void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
                    in float Alpha, // Regularizer
                    out vec2 DUV)
 {
-    // Compute diagonal
-    vec2 Aii;
-    Aii.x = dot(Di.xy, Di.xy) + Alpha;
-    Aii.y = dot(Di.zw, Di.zw) + Alpha;
-    Aii.xy = 1.0 / Aii.xy;
+    /*
+        We solve for X[i] (UV)
+        Matrix => Horn–Schunck Matrix => Horn–Schunck Equation => Solving Equation
 
-    // Compute right-hand side
-    vec2 RHS;
-    RHS.x = dot(Di.xy, Dt);
-    RHS.y = dot(Di.zw, Dt);
+        Matrix
+            [A11 A12] [X1] = [B1]
+            [A21 A22] [X2] = [B2]
 
-    // Compute triangle
+        Horn–Schunck Matrix
+            [(Ix^2 + a) (IxIy)] [U] = [aU - IxIt]
+            [(IxIy) (Iy^2 + a)] [V] = [aV - IyIt]
+
+        Horn–Schunck Equation
+            (Ix^2 + a)U + IxIyV = aU - IxIt
+            IxIyU + (Iy^2 + a)V = aV - IyIt
+
+        Solving Equation
+            U = ((aU - IxIt) - IxIyV) / (Ix^2 + a)
+            V = ((aV - IxIt) - IxIyu) / (Iy^2 + a)
+    */
+
+    // A11 = 1.0 / (Rx^2 + Gx^2 + a)
+    // A22 = 1.0 / (Ry^2 + Gy^2 + a)
+    // Aij = Rxy + Gxy
+    float A11 = 1.0 / (dot(Di.xy, Di.xy) + Alpha);
+    float A22 = 1.0 / (dot(Di.zw, Di.zw) + Alpha);
     float Aij = dot(Di.xy, Di.zw);
 
+    // B1 = Rxt + Gxt
+    // B2 = Ryt + Gyt
+    float B1 = dot(Di.xy, Dt);
+    float B2 = dot(Di.zw, Dt);
+
     // Forward Gauss-Seidel (from 1...i)
-    DUV.x = Aii.x * ((Alpha * UV.x) - RHS.x - (UV.y * Aij));
-    DUV.y = Aii.y * ((Alpha * UV.y) - RHS.y - (DUV.x * Aij));
+    DUV.x = A11 * ((Alpha * UV.x) - B1 - (UV.y * Aij));
+    DUV.y = A22 * ((Alpha * UV.y) - B2 - (DUV.x * Aij));
 
     // Backward Gauss-Seidel (from i...1)
-    DUV.y = Aii.y * ((Alpha * DUV.y) - RHS.y - (DUV.x * Aij));
-    DUV.x = Aii.x * ((Alpha * DUV.x) - RHS.x - (DUV.y * Aij));
+    DUV.y = A22 * ((Alpha * DUV.y) - B2 - (DUV.x * Aij));
+    DUV.x = A11 * ((Alpha * DUV.x) - B1 - (DUV.y * Aij));
 }
 ```
 
@@ -178,6 +202,10 @@ This is the final pass, where we display the processed optical flow result in th
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
 23 | Display | Buffer1 | BackBuffer
+
+## Considerations
+
+There are other ways to estimate motion. This
 
 ## References
 
