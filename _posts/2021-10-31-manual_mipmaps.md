@@ -52,11 +52,19 @@ float ComputeLOD(vec2 TextureSize, vec2 OutputSize, float Bias)
 // Optimized version by Ned Plays Games
 float ComputeLOD(vec2 TexCoord, vec2 InputTextureSize, float Bias)
 {
+    // Calculate how many texels are in each TexCoord (UV) pixel index
     vec2 TexelIndex = TexCoord * InputTextureSize;
+
+    // Calculate how many texels change in UV pixels' <x, y> directions in their respective dimensions
     vec2 Ix = dFdx(TexelIndex);
     vec2 Iy = dFdy(TexelIndex);
-    float Product = max(dot(Ix, Ix), dot(Iy, Iy));
-    return max(0.5 * log2(Product) + Bias, 0.0);
+
+    // Calculate the derivatives' square product and compare which dimension needs more LOD coverage
+    // We need to calculate 4 derivatives <IxU, IyU, IxV, IyV> to account for cases such as rotated UV maps
+    float SquareProduct = max(dot(Ix, Ix), dot(Iy, Iy));
+
+    // Calculate the square-root of log base 2 and bias to find the LOD level
+    return max(0.5 * log2(SquareProduct) + Bias, 0.0);
 }
 ```
 
