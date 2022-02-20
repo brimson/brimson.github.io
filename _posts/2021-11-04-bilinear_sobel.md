@@ -64,8 +64,7 @@ void BilinearSobel(sampler2D Source, vec2 TexCoord, vec2 PixelSize, out vec4 Ix,
     vec4 A2 = texture(Source, TexCoord + vec2( 0.5, 0.5) * PixelSize);
     vec4 A3 = texture(Source, TexCoord + vec2(-0.5, -0.5) * PixelSize);
     vec4 A4 = texture(Source, TexCoord + vec2( 0.5, -0.5) * PixelSize);
-    
-    // Multiply Ix and Iy by 4 to match the weights in original Sobel
+
     Ix = (A2 + A4) - (A0 + A3);
     Iy = (A0 + A2) - (A3 + A4);
 }
