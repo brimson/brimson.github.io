@@ -27,24 +27,34 @@ However, you can pack multiple offsets into one attribute and swizzle them at lo
 
 ## Source Code
 
-### 4-Tap, 3x3 Bilinear Gaussian Filter
+### 4x4 Downsample Box Filter
 
 ```glsl
-void FilterVS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, inout float4 TexCoord : TEXCOORD0)
+void BoxFilterVS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, inout float4 TexCoord : TEXCOORD0)
 {
-    float2 VTexCoord;
-    VTexCoord.x = (ID == 2) ? 2.0 : 0.0;
-    VTexCoord.y = (ID == 1) ? 2.0 : 0.0;
-    Position = float4(VTexCoord * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
-    TexCoord = VTexCoord.xyxy + float4(-0.5, -0.5, 0.5, 0.5) * PixelSize;
+    float2 VSTexCoord = 0.0;
+    VSTexCoord.x = (ID == 2) ? 2.0 : 0.0;
+    VSTexCoord.y = (ID == 1) ? 2.0 : 0.0;
+    Position = float4(VSTexCoord * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
+    TexCoord = VSTexCoord.xyxy + float4(-1.0, -1.0, 1.0, 1.0) * SourcePixelSize.xyxy;
 }
+```
 
-void FilterPS(in float2 Position : SV_POSITION, in float4 TexCoord : TEXCOORD0, out float4 OutputColor0 : SV_TARGET0)
+### 6x6 Downsample Tent Filter
+
+```glsl
+void TentFilterVS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, inout float4 TexCoords[3] : TEXCOORD0)
 {
-    OutputColor0 += tex2D(_Sampler, TexCoord.xw) * 0.25; // (-1.0, +1.0)
-    OutputColor0 += tex2D(_Sampler, TexCoord.zw) * 0.25; // (+1.0, +1.0)
-    OutputColor0 += tex2D(_Sampler, TexCoord.xy) * 0.25; // (-1.0, -1.0)
-    OutputColor0 += tex2D(_Sampler, TexCoord.zy) * 0.25; // (+1.0, -1.0)
+    float2 VSTexCoord = 0.0;
+    VSTexCoord.x = (ID == 2) ? 2.0 : 0.0;
+    VSTexCoord.y = (ID == 1) ? 2.0 : 0.0;
+    Position = float4(VSTexCoord * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
+    // Left column
+    TexCoords[0] = VSTexCoord.xyyy + float4(-2.0, 2.0, 0.0, -2.0) * SourcePixelSize.xyyy;
+    // Center column
+    TexCoords[1] = VSTexCoord.xyyy + float4(0.0, 2.0, 0.0, -2.0) * SourcePixelSize.xyyy;
+    // Right column
+    TexCoords[2] = VSTexCoord.xyyy + float4(2.0, 2.0, 0.0, -2.0) * SourcePixelSize.xyyy;
 }
 ```
 
