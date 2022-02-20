@@ -1,7 +1,7 @@
 ---
 layout: post
 date: 2022-02-20
-title: Bilinear Directional Edge Detection
+title: Bilinear Edge Detection
 category: Shaders
 tags: [Computer Vision, Optimization]
 ---
