@@ -58,20 +58,16 @@ What if we sample adjacently, **in-between** 4 pixels? In a pixel index, the GPU
 ## Source Code
 
 ```glsl
-void LinearSobel(sampler2D Source, vec2 TexCoord, vec2 ScreenSize, out float OutputColor0)
+void BilinearSobel(sampler2D Source, vec2 TexCoord, vec2 PixelSize, out vec4 Ix, out vec4 Iy)
 {
-    vec2 PixelSize = 1.0 / ScreenSize;
-    vec3 Sample1 = texture(Source, TexCoord + vec2(-0.5, 0.5) * PixelSize).rgb;
-    vec3 Sample2 = texture(Source, TexCoord + vec2( 0.5, 0.5) * PixelSize).rgb;
-    vec3 Sample3 = texture(Source, TexCoord + vec2(-0.5, -0.5) * PixelSize).rgb;
-    vec3 Sample4 = texture(Source, TexCoord + vec2( 0.5, -0.5) * PixelSize).rgb;
+    vec4 A0 = texture(Source, TexCoord + vec2(-0.5, 0.5) * PixelSize);
+    vec4 A2 = texture(Source, TexCoord + vec2( 0.5, 0.5) * PixelSize);
+    vec4 A3 = texture(Source, TexCoord + vec2(-0.5, -0.5) * PixelSize);
+    vec4 A4 = texture(Source, TexCoord + vec2( 0.5, -0.5) * PixelSize);
     
     // Multiply Ix and Iy by 4 to match the weights in original Sobel
-    vec3 Ix = -(Sample1 + Sample3) + (Sample2 + Sample4);
-    Ix = Ix * 4.0;
-    vec3 Iy = -(Sample3 + Sample4) + (Sample1 + Sample2);
-    Iy = Iy * 4.0;
-    OutputColor0 = sqrt(dot(Ix, Ix) + dot(Iy, Iy));
+    Ix = ((A2 + A4) - (A0 + A3));
+    Iy = ((A0 + A2) - (A3 + A4));
 }
 ```
 
