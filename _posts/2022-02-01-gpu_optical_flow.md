@@ -31,7 +31,7 @@ Iteration constraint | Multi-scale, symmetric Gauss-Seidel solver
 Texture | Format | Resolution | MipLevels
 :-----: | :----: | :--------: | :-------:
 Buffer0`*` | RG16F | BUFFER_SIZE / 2 | 8
-Buffer2 | RG16F | BUFFER_SIZE / 2 | 8
+Buffer1 | RG16F | BUFFER_SIZE / 2 | 8
 Temporary8`*` | RG16F | BUFFER_SIZE / 256 | 0
 Temporary7`*` | RG16F | BUFFER_SIZE / 128 | 0
 Temporary6`*` | RG16F | BUFFER_SIZE / 64 | 0
@@ -166,14 +166,14 @@ void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-8 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary8
-9 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary7
-10 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary6
-11 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary5
-12 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary4
-13 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary3
-14 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary2
-15 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary1
+8 | OpticalFlow | Buffer0, Buffer1 | Temporary8
+9 | OpticalFlow | Buffer0, Buffer1 | Temporary7
+10 | OpticalFlow | Buffer0, Buffer1 | Temporary6
+11 | OpticalFlow | Buffer0, Buffer1 | Temporary5
+12 | OpticalFlow | Buffer0, Buffer1 | Temporary4
+13 | OpticalFlow | Buffer0, Buffer1 | Temporary3
+14 | OpticalFlow | Buffer0, Buffer1 | Temporary2
+15 | OpticalFlow | Buffer0, Buffer1 | Temporary1
 
 ## Post-processing
 
