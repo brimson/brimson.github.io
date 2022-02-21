@@ -31,7 +31,8 @@ Iteration constraint | Multi-scale, symmetric Gauss-Seidel solver
 Texture | Format | Resolution | MipLevels
 :-----: | :----: | :--------: | :-------:
 Buffer0`*` | RG16F | BUFFER_SIZE / 2 | 8
-Buffer1 | RG16F | BUFFER_SIZE / 2 | 8
+Buffer1`*` | RGBA16F | BUFFER_SIZE / 2 | 8
+Buffer2 | RG16F | BUFFER_SIZE / 2 | 8
 Temporary8`*` | RG16F | BUFFER_SIZE / 256 | 0
 Temporary7`*` | RG16F | BUFFER_SIZE / 128 | 0
 Temporary6`*` | RG16F | BUFFER_SIZE / 64 | 0
@@ -67,7 +68,7 @@ Pass | Shader | Input | Output
 
 ### Convolution
 
-Pete Warden's GPU optical flow uses seperated Gaussian blurs. However, we will use Jorge Jimenez's pyramid convolution, which is superior for multiple reasons:
+Pete Warden's GPU optical flow uses seperated Gaussian blurs. However, we will use Jorge Jimenez's pyramid convolution, which   is superior for multiple reasons:
 
 + Cache friendly due to small kernels and box sampling
 + Elimates temporal instabilities (important for Horn-Schunck)
@@ -84,21 +85,26 @@ Pass | Shader | Input | Output
 6 | Upsample | Temporary3 | Temporary2
 7 | Upsample | Temporary2 | Buffer0
 
+## Derivatives
+
+We create a pyramid of **spatial** derivates using a directional edge detection filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces.
+
+We pack this pyramid texture into an `RGBA16F` texture, which we can use for other shaders. We do not need to build a pyramid for **temporal** derivatives because it does not rely on spatial kernels.
+
+Pass | Shader | Input | Output
+:--: | :----: | :---: | :----:
+8 | Derivatives | Buffer0 | Buffer1
+
+> **NOTE:** Many edge filter kernels are for **integer** sources. Make sure to normalize the derivatives to `[-1, 1]` range because we are working on the neighborhood of `[0, 1]` chromaticity. I recommend using a 5x5 kernel so the shader is robust against noise.
+
 ## Optical Flow
 
 We implement Horn-Schunck's optical flow algorithm with a set of modifications
 
-+ Multi-scale process to get initial values from neighboring pixels
-+ 5x5 spatial derivative calculations
++ Use multi-scale process to get initial values from neighboring pixels
 + Average initial values with a 7x7 low-pass tent filter
 + Estimate features in 2-dimensional chromaticity
 + Use symmetric Gauss-Seidel to solve linear equation
-
-> Many kernels for discrete derivatives are for **integer** sources.
->
-> Normalize the derivatives to `[-1, 1]` range because we are working on the neighborhood of `[0, 1]` chromaticity.
->
-> I recommend using a 5x5 kernel so the shader is robust against noise.
 
 ### Iterative Solver
 
@@ -107,9 +113,8 @@ We implement Horn-Schunck's optical flow algorithm with a set of modifications
 // This is a symmetric Gauss-Seidel solver on a 2-dimensional source
 
 void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
-                   in vec2 Ix, // Spatial derivatives <Rx, Gx>
-                   in vec2 Iy, // Spatial derivatives <Ry, Gy>
-                   in vec2 It, // Temporal derivatives <Rt, Gt>
+                   in vec4 Di, // Spatial derivatives <Rx, Gx, Ry, Gy>
+                   in vec2 Dt, // Temporal derivatives <Rt, Gt>
                    in float Alpha, // Regularizer
                    out vec2 DUV)
 {
@@ -137,14 +142,14 @@ void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
     // A11 = 1.0 / (Rx^2 + Gx^2 + a)
     // A22 = 1.0 / (Ry^2 + Gy^2 + a)
     // Aij = Rxy + Gxy
-    float A11 = 1.0 / (dot(Ix, Ix) + Alpha);
-    float A22 = 1.0 / (dot(Iy, Iy) + Alpha);
-    float Aij = dot(Ix, Iy);
+    float A11 = 1.0 / (dot(Di.xy, Di.xy) + Alpha);
+    float A22 = 1.0 / (dot(Di.zw, Di.zw) + Alpha);
+    float Aij = dot(Di.xy, Di.zw);
 
     // B1 = Rxt + Gxt
     // B2 = Ryt + Gyt
-    float B1 = dot(Ix, It);
-    float B2 = dot(Iy, It);
+    float B1 = dot(Di.xy, Dt);
+    float B2 = dot(Di.zw, Dt);
 
     // Forward Gauss-Seidel (from 1...i)
     DUV.x = A11 * ((Alpha * UV.x) - B1 - (UV.y * Aij));
@@ -166,27 +171,29 @@ void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-8 | OpticalFlow | Buffer0, Buffer1 | Temporary8
-9 | OpticalFlow | Buffer0, Buffer1 | Temporary7
-10 | OpticalFlow | Buffer0, Buffer1 | Temporary6
-11 | OpticalFlow | Buffer0, Buffer1 | Temporary5
-12 | OpticalFlow | Buffer0, Buffer1 | Temporary4
-13 | OpticalFlow | Buffer0, Buffer1 | Temporary3
-14 | OpticalFlow | Buffer0, Buffer1 | Temporary2
-15 | OpticalFlow | Buffer0, Buffer1 | Temporary1
+9 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary8
+10 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary7
+11 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary6
+12 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary5
+13 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary4
+14 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary3
+15 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary2
+16 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary1
 
 ## Post-processing
 
 We do the same convolutions like in the prefiltering phase. However, we use the optical flow texture as input and output the final upsample to `Buffer1`
 
+On pass 22, we also copy `Buffer0`, to `Buffer2`. This allows us to store information from the current convolved frame, `Buffer0`, for the next frame.
+
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-16 | Downsample | Temporary1 | Temporary2
-17 | Downsample | Temporary2 | Temporary3
-18 | Downsample | Temporary3 | Temporary4
-19 | Upsample | Temporary4 | Temporary3
-20 | Upsample | Temporary3 | Temporary2
-21 | Upsample | Temporary2 | Buffer1
+17 | Downsample | Temporary1 | Temporary2
+18 | Downsample | Temporary2 | Temporary3
+19 | Downsample | Temporary3 | Temporary4
+20 | Upsample | Temporary4 | Temporary3
+21 | Upsample | Temporary3 | Temporary2
+22 | Upsample | Temporary2, Buffer0 | Buffer1, Buffer2
 
 ## Output
 
@@ -194,19 +201,7 @@ This is the final pass, where we display the processed optical flow result in th
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-22 | Display | Buffer1 | BackBuffer
-
-## Copy
-
-We copy `Buffer0`, to `Buffer1`. This allows us to store information from the current convolved frame, `Buffer0`, for the next frame.
-
-Pass | Shader | Input | Output
-:--: | :----: | :---: | :----:
-23 | Display | Buffer0 | Buffer1
-
-## Considerations
-
-There are other ways to estimate motion. This
+23 | Display | Buffer1 | BackBuffer
 
 ## References
 
