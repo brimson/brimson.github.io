@@ -116,7 +116,7 @@ The pixel size is a value on how much a pixel occupies the whole screen. In a bl
 float2 PixelSize2D = float2(ddx(TexCoord.x), ddy(TexCoord.y))
 ```
 
-> [Read about the post here](https://brimson.github.io/shaders/2021/12/22/gradientscreensize.html)
+> [Read about the post here][1]
 
 ### Discrete Sampling: Linear Gaussian Blur
 
@@ -142,7 +142,7 @@ const float Weights[5] =
 };
 ```
 
-> [Read about the post here](https://brimson.github.io/shaders/2021/10/30/lineargaussianblur.html)
+> [Read about the post here][0]
 
 ## Source Code
 
@@ -211,6 +211,9 @@ float4 psDx9_tr_opticsBlurV(VS2PS_tr_blit indata) : COLOR
 
 ## References
 
-[Efficient Gaussian Blur with Linear Sampling in GLSL](https://brimson.github.io/shaders/2021/10/30/lineargaussianblur.html)
+[Efficient Gaussian Blur with Linear Sampling in GLSL][0]
 
-[Using Gradient Instructions to Retrieve Screen-space Properties](https://brimson.github.io/shaders/2021/12/22/gradientscreensize.html)
+[Using Gradient Instructions to Retrieve Screen-space Properties][1]
+
+[0]: https://brimson.github.io/shaders/2021/10/30/lineargaussianblur.html
+[1]: https://brimson.github.io/shaders/2021/12/22/gradientscreensize.html

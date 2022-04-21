@@ -6,9 +6,9 @@ category: Shaders
 tags: [Convolutions, Optimizations, Post-Processing]
 ---
 
-Shaders such as [edge detection](https://github.com/keijiro/KinoContour) and [optical flow](https://oa.upm.es/47692/) require calculating derivatives.
+Shaders such as [edge detection][1] and [optical flow][0] require calculating derivatives.
 
-The [Sobel operation](https://homepages.inf.ed.ac.uk/rbf/HIPR2/sobel.htm) is a seperable, 3x3 operator that approximates horizontal and vertical derivatives. I will show you how to a single-pass version of this operation in 4 texture fetches.
+The [Sobel operation][2] is a seperable, 3x3 operator that approximates horizontal and vertical derivatives. I will show you how to a single-pass version of this operation in 4 texture fetches.
 
 ## Discrete Sobel Filter
 
@@ -77,8 +77,12 @@ void BilinearSobel(sampler2D Source, vec2 TexCoord, vec2 PixelSize, out vec4 Ix,
 
 ## References
 
-[Implementation and Analysis of Real Time Optical Flow Solutions for GPU architectures](https://oa.upm.es/47692/)
+[Implementation and Analysis of Real Time Optical Flow Solutions for GPU architectures][0]
 
-[KinoContour](https://github.com/keijiro/KinoContour)
+[KinoContour][1]
 
-[Sobel Edge Detector](https://homepages.inf.ed.ac.uk/rbf/HIPR2/sobel.htm)
+[Sobel Edge Detector][2]
+
+[0]: https://oa.upm.es/47692/
+[1]: https://github.com/keijiro/KinoContour
+[2]: https://homepages.inf.ed.ac.uk/rbf/HIPR2/sobel.htm

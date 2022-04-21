@@ -6,13 +6,13 @@ category: Shaders
 tags: [Convolutions, Post-Processing]
 ---
 
-You do not need much to approximate convolutions. You only need a texture with mipmaps to blur a static image. In this post, we repurpose [Wojciech Sterna's shadow sampling](http://maxest.gct-game.net/content/chss.pdf) for screen convolutions.
+You do not need much to approximate convolutions. You only need a texture with mipmaps to blur a static image. In this post, we repurpose [Wojciech Sterna's shadow sampling][0] for screen convolutions.
 
 ## How Vogel Convolutions Work
 
 1. Sample textures in a spiral
 2. Use mipmaps or noise to fill the gaps between the sampled textures
-    1. [Calculate LOD though the area the sample covers](https://john-chapman.github.io/2019/03/29/convolution.html) if you use mipmaps
+    1. [Calculate LOD though the area the sample covers][1] if you use mipmaps
 3. Average all of the samples
 
 ## Source Code
@@ -63,6 +63,9 @@ void VogelConvolution(sampler2D Source, vec2 TexCoord, vec2 ScreenSize, float Ra
 
 ## References
 
-[Contact-hardening Soft Shadows Made Fast](http://maxest.gct-game.net/content/chss.pdf)
+[Contact-hardening Soft Shadows Made Fast][0]
 
-[Optimizing Convolutions](https://john-chapman.github.io/2019/03/29/convolution.html)
+[Optimizing Convolutions][1]
+
+[0]: http://maxest.gct-game.net/content/chss.pdf
+[1]: https://john-chapman.github.io/2019/03/29/convolution.html

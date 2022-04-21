@@ -18,18 +18,18 @@ WAR_GRADIENT_MUST_UNROLL 3570 | A gradient instruction is used in a loop with va
 ERR_GRADIENT_FLOW 4014        | Gradient operations can't occur inside loops with divergent flow control.
 WARN_HOISTING_GRADIENT 4121   | Gradient-based operations must be moved out of flow control to prevent divergence. Performance might improve by using a non-gradient operation.
 
-> [Learn more about HLSL errors and warnings](https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/hlsl-errors-and-warnings)
+> [Learn more about HLSL errors and warnings][2]
 
 Second, you may manually calculate have artistic intentions. Some examples
 
 + Dynamic LOD bias without sampler states (MipLODBias, MinLOD, and MaxLOD)
-+ Convolutions such as [Poisson disk with mipmaps](https://john-chapman.github.io/2019/03/29/convolution.html) in a loop (especially if you are writing to a downsampled framebuffer)
++ Convolutions such as [Poisson disk with mipmaps][4] in a loop (especially if you are writing to a downsampled framebuffer)
 
 ## Source Code: Calculating LOD in 2D Post-Processing (ReShade)
 
-```glsl
-// Function inspired by http://web.cse.ohio-state.edu/~crawfis.3/cse781/Readings/MipMapLevels-Blog.html
+> Function inspired by [this post][3]
 
+```glsl
 float ComputeLOD(vec2 TextureSize, vec2 OutputSize, float Bias)
 {
     // Calculate the total number of texels in each attribute
@@ -46,10 +46,11 @@ float ComputeLOD(vec2 TextureSize, vec2 OutputSize, float Bias)
 }
 ```
 
-## Source Code: Calculating LOD in [The DirectX 11 Method](https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#7.18.10%20Mipmap%20Selection)
+## Source Code: Calculating LOD in [The DirectX 11 Method][1]
+
+> Optimized version by [Ned Plays Games][0]
 
 ```glsl
-// Optimized version by Ned Plays Games
 float ComputeLOD(vec2 TexCoord, vec2 InputTextureSize, float Bias)
 {
     // Calculate how many texels are in each TexCoord (UV) pixel index
@@ -70,12 +71,18 @@ float ComputeLOD(vec2 TexCoord, vec2 InputTextureSize, float Bias)
 
 ## References
 
-[Basics of Mipmaps in Unity Part 2](https://www.youtube.com/watch?v=2G0Sime3OH0)
+[Basics of Mipmaps in Unity Part 2][0]
 
-[Direct3D 11.3  Functional Specification - Mipmap Selection](https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#7.18.10%20Mipmap%20Selection)
+[Direct3D 11.3  Functional Specification - Mipmap Selection][1]
 
-[HLSL errors and warnings](https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/hlsl-errors-and-warnings)
+[HLSL errors and warnings][2]
 
-[Knowing which mipmap levels are needed](http://web.cse.ohio-state.edu/~crawfis.3/cse781/Readings/MipMapLevels-Blog.html)
+[Knowing which mipmap levels are needed][3]
 
-[Optimizing Convolutions](https://john-chapman.github.io/2019/03/29/convolution.html)
+[Optimizing Convolutions][4]
+
+[0]: https://www.youtube.com/watch?v=2G0Sime3OH0
+[1]: https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#7.18.10%20Mipmap%20Selection
+[2]: https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/hlsl-errors-and-warnings
+[3]: http://web.cse.ohio-state.edu/~crawfis.3/cse781/Readings/MipMapLevels-Blog.html
+[4]: https://john-chapman.github.io/2019/03/29/convolution.html
