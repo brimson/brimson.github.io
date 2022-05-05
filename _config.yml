@@ -1,18 +1,15 @@
 title: GraphicsPosting
-author:
-  name: brimson
-  email: brimson.net@gmail.com
+
+name: brimson
+email: brimson.net@gmail.com
+
 description: > # this means to ignore newlines until "baseurl:"
   This is a blog for much of the things I learned about shader programming. The purpose is to journal things you and I may need later on.
 
-minima:
-  date_format: "%b %-d, %Y"
-
-  # generate social links in footer
-  social_links:
-    github: brimson
+github_username: brimson
 
 show_excerpts: true # set to false to remove excerpts on the homepage
+
 theme: minima
 
 plugins:
