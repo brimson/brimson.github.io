@@ -1,4 +1,3 @@
 Sitemap: https://brimson.github.io/sitemap.xml
 
 User-agent: *
-Disallow:
