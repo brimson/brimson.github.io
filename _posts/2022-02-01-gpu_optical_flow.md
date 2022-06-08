@@ -6,7 +6,7 @@ category: Shaders
 tags: [Computer Vision]
 ---
 
-In this post, I address a shader implementation of Horn-Schunck's optical flow in 23 draw-calls.
+In this post, I address a shader implementation of Horn-Schunck's optical flow in 16 draw-calls.
 
 ## Limitations
 
@@ -16,31 +16,31 @@ The original optical flow algorithm assumes the scene has brightness constancy a
 
 ### Iterations
 
-Pixel shaders are not known for being the best for traditional stationary iterative solvers like Jacobi. These solvers use small kernels in dozens of iterations to get good results. These traditional schemes are simple, can are slow on the GPU due to fillrate and draw-call limitations.
+Pixel shaders are not good for traditional stationary solvers like Jacobi do not translate. These solvers use small kernels in dozens of iterations (draw-calls) to get good results.
 
 The shader addresses these GPU limitations in Horn-Schunck's optical flow
 
-Limitation | Mitigation
+Limitation | Solution
 :--------: | :------:
-Small changes assumption | Bilinear convolutions and sampling
-Brightness constancy assumption | Chromaticity estimation
-Iteration constraint | Multi-scale, symmetric Gauss-Seidel solver
+Small changes assumption | Bilinear blurs and sampling
+Brightness constancy assumption | Multi-channel estimation
+Iteration constraint | Multi-scale solver
 
 ## Resource Requirements
 
 Texture | Format | Resolution | MipLevels
 :-----: | :----: | :--------: | :-------:
 Buffer0`*` | RG16F | BUFFER_SIZE / 2 | 8
-Buffer1`*` | RGBA16F | BUFFER_SIZE / 2 | 8
+Buffer1`*` | RG16F | BUFFER_SIZE / 2 | 8
 Buffer2 | RG16F | BUFFER_SIZE / 2 | 8
-Temporary8`*` | RG16F | BUFFER_SIZE / 256 | 0
-Temporary7`*` | RG16F | BUFFER_SIZE / 128 | 0
-Temporary6`*` | RG16F | BUFFER_SIZE / 64 | 0
-Temporary5`*` | RG16F | BUFFER_SIZE / 32 | 0
-Temporary4`*` | RG16F | BUFFER_SIZE / 16 | 0
-Temporary3`*` | RG16F | BUFFER_SIZE / 8 | 0
+Temporary1`*` | RG16F | BUFFER_SIZE / 2 | 0
 Temporary2`*` | RG16F | BUFFER_SIZE / 4 | 0
-Temporary1 | RG16F | BUFFER_SIZE / 2 | 0
+Temporary3`*` | RG16F | BUFFER_SIZE / 8 | 0
+Temporary4`*` | RG16F | BUFFER_SIZE / 16 | 0
+Temporary5`*` | RG16F | BUFFER_SIZE / 32 | 0
+Temporary6`*` | RG16F | BUFFER_SIZE / 64 | 0
+Temporary7`*` | RG16F | BUFFER_SIZE / 128 | 0
+Temporary8`*` | RG16F | BUFFER_SIZE / 256 | 0
 
 > `*` Reusable texture
 
@@ -48,116 +48,79 @@ Temporary1 | RG16F | BUFFER_SIZE / 2 | 0
 
 ### Color Normalization
 
-We use a 2-dimensional color space (RG Chromaticity) instead of conventional 1-dimensional intensity (luminance). This removes the derivatives' dependency on illumination. We apply this conversion to **each** sample before applying our median filter.
+We use a 2-dimensional color space (RG Chromaticity) instead of conventional 1-dimensional intensity (luminance). This removes the derivatives' dependency on illumination.
 
 ```glsl
 vec2 Chroma(sampler2D Source, vec2 TexCoord)
 {
     vec4 Color = max(texture(Source, TexCoord), exp2(-10.0));
-    return max(Color.xy / dot(Color.rgb, vec2(1.0)), 0.0);
+    return clamp(Color.xy / dot(Color.rgb, vec2(1.0)), 0.0, 1.0);
 }
 ```
 
-### Median Filtering
+Pass | Shader | Input | Output
+:--: | :----: | :---: | :----:
+1 | Normalize | Backbuffer | Buffer0
 
-We apply a median filter in a 3x3 neighborhood for this shader. Remember to normalize each sample, not the median-filtered result.
+### Pre-Process
+
+We apply a seperable, linear gaussian blur on the image.
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-1 | Normalize_Median | Backbuffer | Buffer0
-
-### Convolution
-
-Pete Warden's GPU optical flow uses seperated Gaussian blurs. However, we will use Jorge Jimenez's pyramid convolution, which   is superior for multiple reasons:
-
-+ Cache friendly due to small kernels and box sampling
-+ Elimates temporal instabilities (important for Horn-Schunck)
-+ Fetches and processes multiple texels at once
-+ Does not require 2 textures of the same resolution
-+ Can easily achieve wide-radii convolutions
-
-Pass | Shader | Input | Output
-:--: | :----: | :---: | :----:
-2 | Downsample | Buffer0 | Temporary2
-3 | Downsample | Temporary2 | Temporary3
-4 | Downsample | Temporary3 | Temporary4
-5 | Upsample | Temporary4 | Temporary3
-6 | Upsample | Temporary3 | Temporary2
-7 | Upsample | Temporary2 | Buffer0
+2 | BlurH | Buffer0 | Buffer1
+3 | BlurV | Buffer1 | Buffer0
 
 ## Derivatives
 
-We create a pyramid of **spatial** derivates using a directional edge detection filter for this shader. This pyramid allows the GPU can compute weighted averages over larger spaces.
+### Temporal Derivative
 
-We pack this pyramid texture into an `RGBA16F` texture, which we can use for other shaders. We do not need to build a pyramid for **temporal** derivatives because it does not rely on spatial kernels.
+First, we calculate the temporal derivative. We will only use one-channel for this shader as we are summing the changes of multiple channels (`Iz = DzR + DzG`).
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-8 | Derivatives | Buffer0 | Buffer1
+4 | DerivativeZ | Buffer0, Buffer2 | Buffer1
 
-> **NOTE:** Many edge filter kernels are for **integer** sources. Make sure to normalize the derivatives to `[-1, 1]` range because we are working on the neighborhood of `[0, 1]` chromaticity. I recommend using a 5x5 kernel so the shader is robust against noise.
+### Spatial Derivatives
+
+We create a pyramid of `(x, y)` derivates using an edge-detection filter on the current frame. This pyramid allows the GPU can compute weighted averages over larger spaces. Because we are doing chroma edge detection, we are just going to sum the derivatives of each channel into one (`Ix = DxR + DxG`, `Iy = DyR + DyG`).
+
+Pass | Shader | Input | Output
+:--: | :----: | :---: | :----:
+5 | DerivativeXY | Buffer0 | Buffer2
 
 ## Optical Flow
 
-We implement Horn-Schunck's optical flow algorithm with a set of modifications
-
-+ Use multi-scale process to get initial values from neighboring pixels
-+ Average initial values with a 7x7 low-pass tent filter
-+ Estimate features in 2-dimensional chromaticity
-+ Use symmetric Gauss-Seidel to solve linear equation
-
-### Iterative Solver
+We implement Horn-Schunck's optical flow algorithm with our modifications
 
 ```glsl
-// Horn-Schunck used a Jacobi solver with Cramer's Rule
-// This is a symmetric Gauss-Seidel solver on a 2-dimensional source
-
-void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
-                   in vec4 Di, // Spatial derivatives <Rx, Gx, Ry, Gy>
-                   in vec2 Dt, // Temporal derivatives <Rt, Gt>
-                   in float Alpha, // Regularizer
-                   out vec2 DUV)
+void OpticalFlow(in vec2 UV, // Estimate from coarser level (You can apply a blur here)
+                 in vec2 Di, // Spatial derivatives
+                 in float Dt, // Temporal derivatives
+                 in float Alpha, // Regularizer
+                 out vec2 DUV)
 {
     /*
         We solve for X[i] (UV)
-        Matrix => Horn–Schunck Matrix => Horn–Schunck Equation => Solving Equation
-
+        Matrix => Horn–Schunck Matrix => Horn–Schunck Equation => Factor Equation
         Matrix
             [A11 A12] [X1] = [B1]
             [A21 A22] [X2] = [B2]
-
         Horn–Schunck Matrix
-            [(Ix^2 + a) (IxIy)] [U] = [aU - IxIt]
-            [(IxIy) (Iy^2 + a)] [V] = [aV - IyIt]
-
+            [(Ix^2 + A) (IxIy)] [U] = [aU - IxIt]
+            [(IxIy) (Iy^2 + A)] [V] = [aV - IyIt]
         Horn–Schunck Equation
-            (Ix^2 + a)U + IxIyV = aU - IxIt
-            IxIyU + (Iy^2 + a)V = aV - IyIt
-
-        Solving Equation
-            U = ((aU - IxIt) - IxIyV) / (Ix^2 + a)
-            V = ((aV - IxIt) - IxIyu) / (Iy^2 + a)
+            (Ix^2 + A)U + IxIyV = aU - IxIt
+            IxIyU + (Iy^2 + A)V = aV - IyIt
+        Factor Equation
+            U = ((aU - IxIt) - IxIyV) / (Ix^2 + A)
+            V = ((aV - IxIt) - IxIyu) / (Iy^2 + A)
     */
 
-    // A11 = 1.0 / (Rx^2 + Gx^2 + a)
-    // A22 = 1.0 / (Ry^2 + Gy^2 + a)
-    // Aij = Rxy + Gxy
-    float A11 = 1.0 / (dot(Di.xy, Di.xy) + Alpha);
-    float A22 = 1.0 / (dot(Di.zw, Di.zw) + Alpha);
-    float Aij = dot(Di.xy, Di.zw);
-
-    // B1 = Rxt + Gxt
-    // B2 = Ryt + Gyt
-    float B1 = dot(Di.xy, Dt);
-    float B2 = dot(Di.zw, Dt);
-
-    // Forward Gauss-Seidel (from 1...i)
-    DUV.x = A11 * ((Alpha * UV.x) - B1 - (UV.y * Aij));
-    DUV.y = A22 * ((Alpha * UV.y) - B2 - (DUV.x * Aij));
-
-    // Backward Gauss-Seidel (from i...1)
-    DUV.y = A22 * ((Alpha * DUV.y) - B2 - (DUV.x * Aij));
-    DUV.x = A11 * ((Alpha * DUV.x) - B1 - (DUV.y * Aij));
+    vec2 Aii = 1.0 / ((Di.xy * Di.xy) + Alpha);
+    vec2 Aij = (Di.xx * Di.yy) * UV.yx;
+    vec2 Bi = Di.xy * Dt;
+    DUV.xy = (((Alpha * UV.xy) - Bi.xy) - Aij) * Aii.xy;
 }
 ```
 
@@ -171,29 +134,25 @@ void OpticalFlowRG(in vec2 UV, // Estimate from coarser level
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-9 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary8
-10 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary7
-11 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary6
-12 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary5
-13 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary4
-14 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary3
-15 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary2
-16 | OpticalFlow | Buffer0, Buffer1, Buffer2 | Temporary1
+6 | OpticalFlow | Buffer1, Buffer2 | Temporary8
+7 | OpticalFlow | Temporary8, Buffer1, Buffer2 | Temporary7
+8 | OpticalFlow | Temporary7, Buffer1, Buffer2 | Temporary6
+9 | OpticalFlow | Temporary6, Buffer1, Buffer2 | Temporary5
+10 | OpticalFlow | Temporary5, Buffer1, Buffer2 | Temporary4
+11 | OpticalFlow | Temporary4, Buffer1, Buffer2 | Temporary3
+12 | OpticalFlow | Temporary3, Buffer1, Buffer2 | Temporary2
+13 | OpticalFlow | Temporary2, Buffer1, Buffer2 | Temporary1
 
 ## Post-processing
 
-We do the same convolutions like in the prefiltering phase. However, we use the optical flow texture as input and output the final upsample to `Buffer1`
-
-On pass 22, we also copy `Buffer0`, to `Buffer2`. This allows us to store information from the current convolved frame, `Buffer0`, for the next frame.
+We do the same convolutions like in the prefiltering phase.
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-17 | Downsample | Temporary1 | Temporary2
-18 | Downsample | Temporary2 | Temporary3
-19 | Downsample | Temporary3 | Temporary4
-20 | Upsample | Temporary4 | Temporary3
-21 | Upsample | Temporary3 | Temporary2
-22 | Upsample | Temporary2, Buffer0 | Buffer1, Buffer2
+14 | BlurH | Temporary1, Buffer0 | Buffer1, Buffer2
+15 | BlurV | Buffer1 | Buffer0
+
+On pass 14, we use MRTs to immediately copy `Buffer0`, to `Buffer2`. This allows us to store information from the current convolved frame, `Buffer0`, for the next frame.
 
 ## Output
 
@@ -201,13 +160,11 @@ This is the final pass, where we display the processed optical flow result in th
 
 Pass | Shader | Input | Output
 :--: | :----: | :---: | :----:
-23 | Display | Buffer1 | BackBuffer
+16 | Display | Buffer0 | BackBuffer
 
 ## References
 
 [Determining Optical Flow](https://dspace.mit.edu/handle/1721.1/6337)
-
-[Jorge Jimenez - Next Generation Post Processing in Call of Duty: Advanced Warfare](http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare)
 
 [Optical Flow - Computerphile](https://www.youtube.com/watch?v=5AUypv5BNbI)
 
