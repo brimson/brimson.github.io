@@ -1,14 +1,14 @@
 ---
 layout: post
 date: 2021-11-08
-title: Convolutions with Vogel Spirals
+title: Blurring with Vogel Spirals
 category: Shaders
 tags: [Convolutions, Post-Processing]
 ---
 
-You do not need much to approximate convolutions. You only need a texture with mipmaps to blur a static image. In this post, we repurpose [Wojciech Sterna's shadow sampling][0] for screen convolutions.
+You do not need much to approximate blurs. In this post, we repurpose [Wojciech Sterna's shadow sampling][0] for screen blurs.
 
-## How Vogel Convolutions Work
+## How Vogel Blurs Work
 
 1. Sample textures in a spiral
 2. Use mipmaps or noise to fill the gaps between the sampled textures
@@ -20,7 +20,7 @@ You do not need much to approximate convolutions. You only need a texture with m
 **Note:** If you are writing HLSL, you can use `sincos()` to calculate both sine and cosine of a value in one instruction.
 
 ```glsl
-void VogelSample(int Index, int SamplesCount, float Phi, out vec2 OutputValue)
+void Vogel_Sample(int Index, int SamplesCount, float Phi, out vec2 OutputValue)
 {
     const float GoldenAngle = 2.4;
     float Radius = sqrt(float(Index) + 0.5) * inversesqrt(float(SamplesCount));
@@ -32,7 +32,7 @@ void VogelSample(int Index, int SamplesCount, float Phi, out vec2 OutputValue)
     OutputValue = Radius * SineCosine;
 }
 
-void VogelConvolution(sampler2D Source, vec2 TexCoord, vec2 ScreenSize, float Radius, int Samples, float Phi, out vec4 OutputColor)
+void Vogel_Blur(sampler2D Source, vec2 TexCoord, vec2 ScreenSize, float Radius, int Samples, float Phi, out vec4 OutputColor)
 {
     // Initialize variables we need to accumulate samples and calculate offsets
     vec4 Output;
@@ -49,7 +49,7 @@ void VogelConvolution(sampler2D Source, vec2 TexCoord, vec2 ScreenSize, float Ra
 
     for(int i = 0; i < Samples; i++)
     {
-        VogelSample(i, Samples, Phi, Offset);
+        Vogel_Sample(i, Samples, Phi, Offset);
         OutputColor += texture(Source, TexCoord + (Offset * PixelSize), LOD) * Weight;
     }
 }
@@ -68,4 +68,5 @@ void VogelConvolution(sampler2D Source, vec2 TexCoord, vec2 ScreenSize, float Ra
 [Optimizing Convolutions][1]
 
 [0]: http://maxest.gct-game.net/content/chss.pdf
+
 [1]: https://john-chapman.github.io/2019/03/29/convolution.html

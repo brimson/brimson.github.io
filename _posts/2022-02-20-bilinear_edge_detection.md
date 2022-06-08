@@ -3,12 +3,14 @@ layout: post
 date: 2022-02-20
 title: Bilinear Edge Detection
 category: Shaders
-tags: [Computer Vision, Optimization]
+tags: [Computer Vision, Convolutions, Optimization]
 ---
 
-I needed to approximate a large, 5x5 kernels for derivative detection. I did not want to sample 25 textures due to the buffer being half-resolution.
+You may need a 5x5 edge detector without sampling 24 textures.
 
-With the help of bilinear interpolation and CeeJayDK, we were able to approximate 5x5 edge detectors in 8 samples. The trick is to sample diagonally between 4 pixel neighbors. This post gives 2 8-tap, 5x5 kernels for the operation
+[CeeJayDK](https://github.com/CeeJayDK) and I were able to approximate 5x5 edge detectors in 8 samples. The trick is to sample diagonally between 4 pixel neighbors to use bilinear interpolation.
+
+This post gives 2 8-tap, 5x5 kernels for the operation:
 
 + Non-rotational (10-pixel neighborhood)
 + One rotational (8-pixel neighborhood)
@@ -16,7 +18,7 @@ With the help of bilinear interpolation and CeeJayDK, we were able to approximat
 ## Non-Rotational Kernel
 
 ```glsl
-void BilinearEdgeDetection(in sampler2D Source, in vec2 TexCoord, in vec2 PixelSize, out vec4 Ix, out vec4 Iy)
+void Bilinear_Edge_Detection(in sampler2D Source, in vec2 TexCoord, in vec2 PixelSize, out vec4 Ix, out vec4 Iy)
 {
     // Custom 5x5 bilinear derivatives, normalized to [-1, 1]
     // A0 B0 C0
@@ -52,7 +54,7 @@ void BilinearEdgeDetection(in sampler2D Source, in vec2 TexCoord, in vec2 PixelS
 ## Rotational Kernel
 
 ```glsl
-void BilinearEdgeDetection(in sampler2D Source, in vec2 TexCoord, in vec2 PixelSize, out vec4 Ix, out vec4 Iy)
+void Bilinear_Edge_Detection(in sampler2D Source, in vec2 TexCoord, in vec2 PixelSize, out vec4 Ix, out vec4 Iy)
 {
     // Custom 5x5 bilinear edge-detection by CeeJayDK
     //   B0 B1

@@ -6,13 +6,13 @@ category: Shaders
 tags: [Post-Processing, Tutorial]
 ---
 
-**void()** functions are essential vertex and pixel shaders. Void functions allow you to output multiple values.
+**void()** functions are essential for vertex and pixel shaders. Void functions allow you to output multiple values.
 
 Here is an example of a `void` function.
 
 ```glsl
 // The following void function outputs 0.0
-void FunctionPS(out float4 OutputValue)
+void Function_PS(out float4 OutputValue)
 {
     OutputValue = 0.0;
 }
@@ -26,8 +26,8 @@ float4 Function()
     // Initialize variable
     float4 Value = 0.0;
 
-    // Run FunctionPS(x), which outputs the result to the "Value" variable
-    FunctionPS(Value);
+    // Run Function_PS(x), which outputs the result to the "Value" variable
+    Function_PS(Value);
     return Value;
 }
 ```
@@ -62,28 +62,28 @@ Step | Function | Description
 ## Step 1. Name Your Function
 
 ```glsl
-// Call a void function called **FunctionPS**
-void FunctionPS()
+// Call a void function called **Function_PS**
+void Function_PS()
 ```
 
 ## Step 2. Write the input semantics
 
 ```glsl
 // "in" tells the compiler that you want to input two semantics: SV_POSITION and TEXCOORD0
-void FunctionPS(in float4 Position : SV_POSITION, in float2 TexCoord : TEXCOORD0)
+void Function_PS(in float4 Position : SV_POSITION, in float2 TexCoord : TEXCOORD0)
 ```
 
 ## Step 3. Write the output semantics
 
 ```glsl
 // "out" tell the compiler that you want to output one semantic: SV_TARGET0 
-void FunctionPS(in float4 Position : SV_POSITION, in float2 TexCoord : TEXCOORD0, out float4 OutputColor0 : SV_TARGET0)
+void Function_PS(in float4 Position : SV_POSITION, in float2 TexCoord : TEXCOORD0, out float4 OutputColor0 : SV_TARGET0)
 ```
 
 ## Step 4. Write the value the output semantic should have
 
 ```glsl
-void FunctionPS(in float4 Position : SV_Position, in float2 TexCoord : TEXCOORD0, out float4 OutputColor0 : SV_TARGET0)
+void Function_PS(in float4 Position : SV_Position, in float2 TexCoord : TEXCOORD0, out float4 OutputColor0 : SV_TARGET0)
 {
     // Output texture coordinate value to red|green components
     OutputColor0 = float4(TexCoord, 0.0, 1.0);
@@ -100,7 +100,7 @@ void PostProcessVS(in uint ID : SV_VERTEXID, out float4 Position : SV_POSITION, 
     Position = float4(TexCoord * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
 }
 
-void FunctionPS(in float4 Position : SV_Position, in float2 TexCoord : TEXCOORD0, out float4 OutputColor0 : SV_TARGET0)
+void Function_PS(in float4 Position : SV_Position, in float2 TexCoord : TEXCOORD0, out float4 OutputColor0 : SV_TARGET0)
 {
     // Output texture coordinate value to red|green components
     OutputColor0 = float4(TexCoord, 0.0, 1.0);
@@ -111,7 +111,7 @@ technique Function
     pass
     {
         VertexShader = PostProcessVS;
-        PixelShader = FunctionPS;
+        PixelShader = Function_PS;
     }
 }
 ```

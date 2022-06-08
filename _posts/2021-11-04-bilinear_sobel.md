@@ -8,11 +8,11 @@ tags: [Convolutions, Optimizations, Post-Processing]
 
 Shaders such as [edge detection][1] and [optical flow][0] require calculating derivatives.
 
-The [Sobel operation][2] is a seperable, 3x3 operator that approximates horizontal and vertical derivatives. I will show you how to a single-pass version of this operation in 4 texture fetches.
+The [Sobel filter][2] calculates horizontal and vertical derivatives in a 3x3 window. I will show you how to a compute a Sobel filter in 4 texture fetches.
 
 ## Discrete Sobel Filter
 
-The first assumption is that sobel requires 8 texture fetches, each **on** the pixel index. Here we represent sampler locations, horizontal kernel, and vertical kernel.
+A generic Sobel filter requires 8 texture fetches, each **on** the pixel index. Here we represent sampler locations, horizontal kernel, and vertical kernel.
 
 ```glsl
 // Sampler locations
@@ -33,16 +33,16 @@ The first assumption is that sobel requires 8 texture fetches, each **on** the p
 
 ## Linear Sobel Filter
 
-What if we sample adjacently, **in-between** 4 pixels? In a pixel index, the GPU will preform a 2x2 bilinear interpolation between sampled texels.
+What if we sample diagonally, **in-between** 4 pixels? The GPU will interpolate between 4 pixels to get a result.
 
 ```glsl
 // Sampler locations (A, B, C, D)
-// Let numbers be pixel indices
-[1   2   3]
+// Let "." be pixels
+[.   .   .]
 [  A   C  ]
-[4   5   6]
+[.   .   .]
 [  B   D  ]
-[7   8   9]
+[.   .   .]
 
 // Horizontal kernel
 [-0.25 0.00 0.25]
@@ -58,7 +58,7 @@ What if we sample adjacently, **in-between** 4 pixels? In a pixel index, the GPU
 ## Source Code
 
 ```glsl
-void BilinearSobel(sampler2D Source, vec2 TexCoord, vec2 PixelSize, out vec4 Ix, out vec4 Iy)
+void Bilinear_Sobel(sampler2D Source, vec2 TexCoord, vec2 PixelSize, out vec4 Ix, out vec4 Iy)
 {
     vec4 A0 = texture(Source, TexCoord + vec2(-0.5, 0.5) * PixelSize);
     vec4 A2 = texture(Source, TexCoord + vec2( 0.5, 0.5) * PixelSize);
@@ -84,5 +84,7 @@ void BilinearSobel(sampler2D Source, vec2 TexCoord, vec2 PixelSize, out vec4 Ix,
 [Sobel Edge Detector][2]
 
 [0]: https://oa.upm.es/47692/
+
 [1]: https://github.com/keijiro/KinoContour
+
 [2]: https://homepages.inf.ed.ac.uk/rbf/HIPR2/sobel.htm

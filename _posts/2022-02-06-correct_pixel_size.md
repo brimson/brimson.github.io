@@ -6,36 +6,26 @@ category: Shaders
 tags: [Post-Processing, Tutorial]
 ---
 
-It is important to calculate correct pixel-sizes when writing shaders such as discrete convolutions.
+It is essential to calculate correct pixel-sizes when writing blur shaders to a lower resolution.
 
-## Scenario
-
-1. Your backbuffer's resolution is `1920*1080`, something the user can change anytime
-    + Your application provides your the backbuffer's resolution in the form of `vec2(BUFFER_WIDTH, BUFFER_HEIGHT)`
-    + You do not have a function that retrieves the screen size from any other textures
-2. You are writing a shader that does the following
-    + Applies Gaussian convolution by offsetting textures
-        + Requires knowledge of the render-target's pixel-size
-    + Writes the result to a `7*4` render-target. 256 times smaller than the backbuffer
+We will address a scenario where the variable `ScreenSize.xy` is `vec2(1920.0, 1080.0)`, but the target resolution is **7x4** (1/256th of **1920x1080**).
 
 ## Naive Method
 
-You may calculate the render-target's pixel size by applying a reciprocal on the divided backbuffer resolution.
+You may calculate pixel size by applying a reciprocal on the target resolution.
 
 ```glsl
-vec2 PixelSize = 1.0 / (vec2(BUFFER_WIDTH, BUFFER_HEIGHT) / 256.0);
+vec2 PixelSize = 1.0 / (vec2(ScreenSize.xy) / 256.0);
 ```
 
-This is an incorrect way to calculate pixel size because the hypothetical screen-size becomes `vec2(7.5, 4.21875)`. Textures almost never have decimal resolutions.
-
-Performing a reiprocal on the screen-size gives pixel sizes of `vec2(0.13333334, 0.237037033)`.
+This is an incorrect way to calculate pixel size because the result becomes `vec2(0.13333334, 0.237037033)`. The hypothetical screen-size becomes `vec2(7.5, 4.21875)`. Textures do not have decimal resolutions.
 
 ## Correct Method
 
-The correct method is to divide the resolution, cast the quotient into an integer, and reciprocal the quotient.
+You need to divide the resolution, cast the quotient into an integer, and apply the reciprocal.
 
 ```glsl
-vec2 PixelSize = 1.0 / ivec2(vec2(BUFFER_WIDTH, BUFFER_HEIGHT) / 256.0);
+vec2 PixelSize = 1.0 / ivec2(vec2(ScreenSize.xy) / 256.0);
 ```
 
-The hypothetical screen-size ends up being `vec2(7, 4)`, giving a pixel size of `vec2(0.142857149, 0.25)`.
+The pixel size becomes `vec2(0.142857149, 0.25)`, with the hypothetical screen-size becoming `vec2(7, 4)`.

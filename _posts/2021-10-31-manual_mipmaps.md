@@ -6,9 +6,9 @@ category: Shaders
 tags: [Optimizations]
 ---
 
-There are situations where you need to calculate a texture's LOD by hand.
+There are situations where you need to calculate a texture's LOD yourself.
 
-First, you must manually calculate your texture's LOD if you are looping texture sampling. You may encounter errors or warnings if you loop gradient instructions like `tex2D()`:
+First, you must calculate your texture's LOD if you are loop texture sampling. You may encounter errors or warnings if you loop `tex2D()` functions:
 
 Error / Warning | Description
 --------------- | -----------
@@ -18,12 +18,12 @@ WAR_GRADIENT_MUST_UNROLL 3570 | A gradient instruction is used in a loop with va
 ERR_GRADIENT_FLOW 4014        | Gradient operations can't occur inside loops with divergent flow control.
 WARN_HOISTING_GRADIENT 4121   | Gradient-based operations must be moved out of flow control to prevent divergence. Performance might improve by using a non-gradient operation.
 
-> [Learn more about HLSL errors and warnings][2]
-
-Second, you may manually calculate have artistic intentions. Some examples
+Second, you may manually calculate your texture's LOD for artistic intentions:
 
 + Dynamic LOD bias without sampler states (MipLODBias, MinLOD, and MaxLOD)
 + Convolutions such as [Poisson disk with mipmaps][4] in a loop (especially if you are writing to a downsampled framebuffer)
+
+> [Learn more about HLSL errors and warnings][2]
 
 ## Source Code: Calculating LOD in 2D Post-Processing (ReShade)
 
@@ -82,7 +82,11 @@ float ComputeLOD(vec2 TexCoord, vec2 InputTextureSize, float Bias)
 [Optimizing Convolutions][4]
 
 [0]: https://www.youtube.com/watch?v=2G0Sime3OH0
+
 [1]: https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#7.18.10%20Mipmap%20Selection
+
 [2]: https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/hlsl-errors-and-warnings
+
 [3]: http://web.cse.ohio-state.edu/~crawfis.3/cse781/Readings/MipMapLevels-Blog.html
+
 [4]: https://john-chapman.github.io/2019/03/29/convolution.html

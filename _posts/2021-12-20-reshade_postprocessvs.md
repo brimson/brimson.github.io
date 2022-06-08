@@ -32,7 +32,7 @@ The `SV_VERTEXID` is an identifier assigned to each vertex. The system generates
 .
 ...
 .....
-0   2
+0    2
 ```
 
 ## Step 1. Call in Input and Output Semantics

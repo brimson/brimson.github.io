@@ -6,7 +6,7 @@ category: Shaders
 tags: [Post-Processing, Optimization]
 ---
 
-I was writing a red-black checkerboarding shader to test iterative solvers on.
+I was writing a red-black checkerboard shader but feared that I would trigger flow control. 
 
 ```glsl
 void main(void)
@@ -15,8 +15,6 @@ void main(void)
     gl_FragColor = RedBlack == 1.0 ? vec4(1.0, 0.0, 0.0, 0.0) : vec4(0.0);
 }
 ```
-
-I was a skeptical about writing conditionals in shaders like I did on `gl_FragColor`. I assumed that every conditional would result in branching.
 
 I was wrong. In best case scenario, the shader would lead us to the following output:
 

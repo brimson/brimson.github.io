@@ -6,7 +6,7 @@ category: Shaders
 tags: [Post-Processing, Optimization]
 ---
 
-I have been working on shaders for Project Reality, a Battlefield 2 modification. The Refractor games allow users to modify the game's shaders to their liking.
+I am working on shaders for Project Reality, a Battlefield 2 modification. The Refractor games allow users to modify the game's shaders.
 
 Here is a snippet of Project Reality's optics blur shader as of `1.6.8.2`
 
@@ -61,7 +61,7 @@ There are a couple of issues with this code that I will explain and provide solu
 
 ### Blur Mismatching
 
-The blur offsets are independent from screen resolution, causing blur mismatches (holes) between the samples.
+The blur offsets are independent from screen resolution, causing "holes" in-between the samples.
 
 ```glsl
 // Calculating horizontal offset size
@@ -216,4 +216,5 @@ float4 psDx9_tr_opticsBlurV(VS2PS_tr_blit indata) : COLOR
 [Using Gradient Instructions to Retrieve Screen-space Properties][1]
 
 [0]: https://brimson.github.io/shaders/2021/10/30/lineargaussianblur.html
+
 [1]: https://brimson.github.io/shaders/2021/12/22/gradientscreensize.html

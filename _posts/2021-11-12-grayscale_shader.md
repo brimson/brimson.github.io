@@ -14,10 +14,10 @@ I recommend reading the previous post on `void()` functions before proceeding.
 
 Variable | Definition
 -------- | ----------
-`texture`      | A set of values
-`sampler`      | Interpretation of a texture
+`texture` | A set of values
+`sampler` | Interpretation of a texture
 `VertexShader` | Program that does does per-vertex calculations and outputs data to the `PixelShader`
-`PixelShader`  | Program that does per-pixel calculations and outputs data to a `RenderTarget`
+`PixelShader` | Program that does per-pixel calculations and outputs data to a `RenderTarget`
 `RenderTarget` | A target texture
 
 ## Step 1: Grab ReShade's BackBuffer

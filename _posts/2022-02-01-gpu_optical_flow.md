@@ -3,7 +3,7 @@ layout: post
 date: 2022-02-01
 title: Multi-scale Horn Schunck on the GPU
 category: Shaders
-tags: [Computer Vision, Optimization]
+tags: [Computer Vision]
 ---
 
 In this post, I address a shader implementation of Horn-Schunck's optical flow in 23 draw-calls.

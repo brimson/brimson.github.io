@@ -6,31 +6,36 @@ category: Shaders
 tags: [Convolutions, Optimizations, Post-Processing]
 ---
 
-Programmers use box filters, a convolution, to blur an image. For example, [Blender uses box filters for its Eevee engine bloom][0]. The GPU can efficiently cache a box filter because it is a small kernel with predictable sample locations.
+## Introduction
 
-Here is what simple box filter looks like:
+Programmers use box filters to blur an image. For example, [Blender uses box filters to render its Eevee engine bloom][0].
+
+This is what simple box filter looks like:
 
 ```glsl
-[A(0.25) C(0.25)]
-[B(0.25) D(0.25)]
+// (x, y) are sample locations
+A(x - 0.5, y + 0.5) C(x + 0.5, y + 0.5)
+B(x - 0.5, y - 0.5) D(x + 0.5, y - 0.5)
+...
+(A + B + C + D) / 4.0
 ```
+
+The GPU can cache this filter because it is small and local. "Local" means that the shader samples textures not far from its origin.
 
 ## Vertex Shader Optimization
 
-You can optimize convolutions by calculating texture coordinates in the vertex shader. This optimization encourages caching and prevents unnecessary per-pixel calculations.
+You calculate texture coordinates in the vertex shader to prevent per-pixel calculations.
+
+Unfortunately, Shader Model 3.0 [limits us to calculate 8 texture coordinates in the vertex shader][2]. However, you can pack multiple offsets into one `TexCoord` and swizzle them in the pixel shader ["for free"][3].
 
 > [Read more about the optimization here][1]
-
-Unfortunately, we have have limitations if we use this optimization on Direct3D 9.0c. `vs_3_0` [limits us to 8 texture coordinate outputs][2].
-
-However, you can pack multiple offsets into one attribute and swizzle them at lookup. Fortunately, Direct3D [allows you swizzle texture coordinates before texture lookup][3].
 
 ## Source Code
 
 ### 4x4 Downsample Box Filter
 
 ```glsl
-void BoxFilterVS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, inout float4 TexCoord : TEXCOORD0)
+void Box_Filter_VS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, inout float4 TexCoord : TEXCOORD0)
 {
     float2 VSTexCoord = 0.0;
     VSTexCoord.x = (ID == 2) ? 2.0 : 0.0;
@@ -43,7 +48,7 @@ void BoxFilterVS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, 
 ### 6x6 Downsample Tent Filter
 
 ```glsl
-void TentFilterVS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, inout float4 TexCoords[3] : TEXCOORD0)
+void Tent_Filter_VS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION, inout float4 TexCoords[3] : TEXCOORD0)
 {
     float2 VSTexCoord = 0.0;
     VSTexCoord.x = (ID == 2) ? 2.0 : 0.0;
@@ -58,8 +63,6 @@ void TentFilterVS(in uint ID : SV_VERTEXID, inout float4 Position : SV_POSITION,
 }
 ```
 
-This is pretty epic. Not only we reduced overhead and allow the pipeline to "pre-fetch" samplers, but we reduced 4 `mad-ps` instructions to 1 `mad-vs` instruction.
-
 ## References
 
 [Blender Source Code - Eevee Bloom][0]
@@ -71,6 +74,9 @@ This is pretty epic. Not only we reduced overhead and allow the pipeline to "pre
 [texld - ps_2_0 and up][3]
 
 [0]: https://github.com/blender/blender/blob/master/source/blender/draw/engines/eevee/eevee_bloom.c
+
 [1]: http://www.sunsetlakesoftware.com/2013/10/21/optimizing-gaussian-blurs-mobile-gpu
+
 [2]: https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/shader-model-3
+
 [3]: https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/texld---ps-2-0#ps_3_0

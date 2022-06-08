@@ -8,7 +8,7 @@ tags: [Convolutions, Optimizations, Post-Processing]
 
 You are probably familiar with [RasterGrid's efficient gaussian blur][0].
 
-However, the article did not provide shader code for linear Gaussian blur. So, you end up using RasterGrid's pre-computed 7-taps or [port a shader from a seperate repository][1].
+However, RasterGrid's article did not provide shader code to compute any-size linear Gaussian blur. As a result, people use RasterGrid's pre-computed 7-taps or [port a shader from a seperate repository][1].
 
 I wrote a GLSL snippet for us to use. Feel free to write your own calculations for Gaussian weight distribution, kernel size, and Sigma value.
 
@@ -109,4 +109,5 @@ Console.WriteLine($"Offsets: {totalOffsets}\nWeights: {totalWeights}");
 [Optimized single-pass blur shaders for GLSL][1]
 
 [0]: https://www.rastergrid.com/blog/2010/09/efficient-Gaussian-blur-with-linear-sampling/
+
 [1]: https://github.com/Jam3/glsl-fast-gaussian-blur
