@@ -1,7 +1,7 @@
 ---
 layout: post
 date: 2021-12-22
-title: Using ddx()/ddy() for Pixel Size
+title: Calculating Pixel Size with Derivatives
 category: Shaders
 tags: [Post-Processing]
 ---

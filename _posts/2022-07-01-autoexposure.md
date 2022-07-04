@@ -6,7 +6,7 @@ category: Shaders
 tags: [Post-Processing, Optimizations]
 ---
 
-Many games use 
+
 
 ## Source Code
 
