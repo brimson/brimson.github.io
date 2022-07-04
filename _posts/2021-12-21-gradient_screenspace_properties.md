@@ -1,7 +1,7 @@
 ---
 layout: post
 date: 2021-12-22
-title: Using Gradient Instructions to Retrieve Screen-space Properties 
+title: Using ddx()/ddy() for Pixel Size
 category: Shaders
 tags: [Post-Processing]
 ---

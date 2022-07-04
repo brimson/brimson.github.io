@@ -3,7 +3,7 @@ layout: post
 date: 2022-02-20
 title: Bilinear Edge Detection
 category: Shaders
-tags: [Computer Vision, Convolutions, Optimization]
+tags: [Computer Vision, Convolutions, Optimizations]
 ---
 
 You may need a 5x5 edge detector without sampling 24 textures.

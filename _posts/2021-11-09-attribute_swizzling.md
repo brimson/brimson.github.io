@@ -1,12 +1,10 @@
 ---
 layout: post
 date: 2021-11-09
-title: Swizzling Texture Coordinates for Box Filters
+title: Faster Box Filters
 category: Shaders
 tags: [Convolutions, Optimizations, Post-Processing]
 ---
-
-## Introduction
 
 Programmers use box filters to blur an image. For example, [Blender uses box filters to render its Eevee engine bloom][0].
 

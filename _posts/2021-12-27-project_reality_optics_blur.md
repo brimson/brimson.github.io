@@ -3,7 +3,7 @@ layout: post
 date: 2021-12-22
 title: Updating Optics Blur for Project Reality
 category: Shaders
-tags: [Post-Processing, Optimization]
+tags: [Post-Processing, Optimizations]
 ---
 
 I am working on shaders for Project Reality, a Battlefield 2 modification. The Refractor games allow users to modify the game's shaders.

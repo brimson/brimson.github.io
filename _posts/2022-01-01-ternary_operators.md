@@ -3,7 +3,7 @@ layout: post
 date: 2022-01-01
 title: Compare Instruction Appreciation Post
 category: Shaders
-tags: [Post-Processing, Optimization]
+tags: [Post-Processing, Optimizations]
 ---
 
 I was writing a red-black checkerboard shader but feared that I would trigger flow control. 
